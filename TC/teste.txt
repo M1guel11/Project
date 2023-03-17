@@ -1,0 +1,97 @@
+6
+3
+1 2 6
+3
+3 4 6
+10
+1 _ 2
+1 _ 3
+2 a 4
+2 b 1
+3 _ 2
+3 a 4
+3 a 5
+3 b 4
+4 a 2
+6 a 6
+bbaa
+
+
+
+6
+1
+1
+1
+6
+3
+1 a 1
+1 _ 5
+5 _ 6
+aaa
+
+
+4
+1
+1
+2
+3 4
+6
+1 a 3
+1 b 2
+2 a 2
+2 b 1
+3 a 4
+4 b 2
+bbaa
+
+
+6
+1
+1
+1
+6
+8
+1 _ 2
+2 a 3
+2 b 4
+3 a 2
+3 b 4
+4 _ 5
+5 _ 3
+5 _ 6
+aab
+      executa palavra b (aqui::caminho) a t
+
+
+
+
+ if (is_accepted estados_fin palavra cont aqui)  then
+          let new_caminho = (aqui)::caminho in
+          let () = printf ("YES\n") in
+          List.iter (fun e -> Printf.printf "%d " e) (List.rev new_caminho) ;
+  
+        else begin
+          if( ((List.length estados_ini)-cont_ini)==0) then
+            printf "\nNO"
+          else begin
+
+
+
+
+
+
+8
+2
+1 2
+2
+6 8
+8
+1 a 5
+1 b 6
+2 a 3
+2 a 4
+3 a 3
+4 b 4
+5 b 5
+5 b 6
+abb

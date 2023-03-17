@@ -2,26 +2,23 @@
 open Scanf
 open Printf
 
-dsfs
-
 
 let em_par a b c =  ((a,b),c)
 
+let em_par_2 a b c =  (([a],[b]),[c])
 
-
-let is_final a listf=
-if List.mem a listf then true else false
-
-let rec check_trans1 lista =
-      match lista with
-      | [] -> 0
-      | ((_,e),_)::t ->  if (e == '_') then 1 else check_trans1 t
-
-
-let rec is_eps_trans ltrans aqui destino=
-    match ltrans with
-    |[] -> false
-    |((a,b),c)::t -> if a == aqui && b = '_' && c == destino then true else is_eps_trans t aqui destino
+let rec remove_duplicates l =
+  let rec contains l n =
+    match l with
+    | [] -> false
+    | h :: t ->
+      h = n || contains t n
+  in
+  match l with
+  | [] -> []
+  | h :: t ->
+    let acc = remove_duplicates t in
+    if contains acc h then acc else h :: acc
 
 let create_maquina c=
   let i = ref 0 in
@@ -32,28 +29,6 @@ let create_maquina c=
       i:=!i+1
     done;
     !input
-
-
-(*maybe *)
-    (*let rec next ltrans estado letra =
-      let aux= ref [] in
-      for i=0 to (List.length ltrans)-1 do
-        let ((a,b),c) = List.nth ltrans i in
-       if ((a==estado && b==letra) || (a==estado && b=='_')) then (aux:= c :: !aux);
-      done;
-      List.sort compare !aux
-    
-    let step ltrans aqui destino palavra cont caminho =
-          if is_eps_trans ltrans aqui destino then
-            let new_caminho = (aqui)::caminho in
-            let aux = (destino,cont,new_caminho) in
-            aux
-          else
-            let new_caminho = (aqui)::caminho in
-            let aux = (destino,cont+1,new_caminho) in
-            aux
-*)
-
 
             let rec print_trans lst =
               match List.rev lst with
@@ -82,17 +57,6 @@ let create_maquina c=
 
 
     (*new Part*)
-
-  
-let rec get_alfabeto transicoes ret= 
-  match transicoes with
-  |((a,b),c) :: tl -> if not (List.mem b ret) then get_alfabeto tl (ret @ [b]) else get_alfabeto tl ret
-  | [] -> List.sort compare ret 
-    
-let rec get_destino ini label transicoes=
-match transicoes with 
-| ((a,b),c) :: tl -> if a=ini && (compare b label = 0) then c else get_destino ini label tl
-| [] -> 0
 
 
 let rec possiveis label transicoes ret  =
@@ -124,9 +88,11 @@ let rec possiveis_equivaletes lposs1 lposs2 finl =
 let rec estado_equi state_1 state_2 finl transicoes =
   if possiveis_equivaletes (possiveis state_1 transicoes []) (possiveis state_2 transicoes []) finl then true else false  
 
+
+
 let rec combinacoes_to_state combinacoes ret finl transicoes=
   match combinacoes with
-  | (a,b) :: tl -> if estado_equi a b finl transicoes then ret @ [(a,b)] else combinacoes_to_state tl ret finl transicoes
+  | (a,b) :: tl -> if estado_equi a b finl transicoes then ([a;b] :: ret) else combinacoes_to_state tl ret finl transicoes
   | [] -> ret
 
 
@@ -140,13 +106,11 @@ let rec combinacoes_list lista ret =
   | [] -> ret
   | x::tl -> combinacoes_list tl (ret @ combinacoes tl [] x )
 
-
-
-
 let rec exists   x new_states =
   match new_states with
-  | (a,b) :: tl -> if  a = x || b = x then true else exists x tl
-  |[] -> false  
+  | hd ::tl -> if List.mem x hd then true else exists x tl
+  | [] -> false
+
 
 
 
@@ -157,20 +121,55 @@ let rec distinguish transicoes estados finl ret =
   
 let rec new_automato  old_states new_states  ret =
     match old_states with
-    | hd ::tl -> if exists hd new_states then new_automato tl new_states ret else new_automato tl new_states (ret @ [hd])
-    | [] -> ret
+    | hd ::tl -> if exists hd new_states then new_automato tl new_states ret else new_automato tl new_states ([hd] :: ret)
+    | [] -> (List.rev ret ) @ new_states
 
 
-let rec get_trans trans x ret= 
+
+let rec get_buddy  x new_states =
+  match new_states with
+  | hd :: tl -> if List.mem (List.hd x) hd then hd else get_buddy x tl 
+  |[] -> x
+
+
+let rec new_trans old_trans ret =
+  match old_trans with
+  | ((a,b),c) :: tl -> new_trans  tl (em_par_2 a b c :: ret)
+  | [] -> ret
+
+
+
+  let rec check_list_list_of_lists list big_list =
+    match big_list with
+    | hd::tl -> if compare hd list = 0 then true else check_list_list_of_lists list tl 
+    | [] -> false
+
+
+
+
+let rec get_labels trans x ret= 
   match trans with 
-  |((a,b),c) ::tl -> if x=a then get_trans tl x (ret@ [((a,b),c)]) else get_trans tl x ret
+  | k ::tl -> let ((a,b),c) = k in if compare x a = 0 then get_labels tl x ( ret @ b) else get_labels tl x ret
   |[] -> ret
 
 
-let rec new_trans old_trans new_states ret =
-  match new_states with
-  | (a,b) :: tl -> let x1 = get_trans old_trans a [] in let x2 = get_trans old_trans b [] in [x1;x2]
+
+let rec combine_labels trans  ret current=
+  match trans with
+  | ((a,b),c) :: tl ->if  not (List.mem a current)  then   combine_labels tl  (((a,get_labels trans a []),c) :: ret ) (a :: current) else combine_labels tl ret (current)
   | [] -> ret
+
+
+
+
+
+
+let rec final_trans_list new_trans new_states ret =
+  match new_trans with
+  | ((a,b),c):: tl ->    let k= ((get_buddy (a) new_states,b), get_buddy (c) new_states) in final_trans_list tl new_states  (k :: ret)
+  | [] -> ret
+
+
 
 
 (*output 
@@ -189,10 +188,6 @@ let () =
   print_list finl;
   print_trans trans
 
-let k = distinguish trans [initl;finl] finl []
+let minimized_automato = (new_automato (initl @ finl) (distinguish trans [initl;finl] finl []) [])
 
-let y = (new_automato (initl @ finl) k [])
-
-let o = new_trans trans k []
-
-let u = (y,k)
+let u = combine_labels (remove_duplicates (final_trans_list (new_trans trans []) minimized_automato [])) [] []

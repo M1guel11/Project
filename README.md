@@ -1,3 +1,14 @@
-# Project
+# Deterministic Finite Automata Minimization
 
-Projeto final de licenciatura 
+BSc Final Project
+
+## How to compile and run
+- Compile
+```bash
+dune build
+```
+- Run
+```bash
+dune exec dfa_minimization < tests/t1.in
+```
+

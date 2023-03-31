@@ -39,19 +39,19 @@ let rec print_list lst =
       Printf.printf "%d " h;
       print_list t
 
-let nEst = read_int ()
-let init = read_int ()
+let read_int_list () = List.map (fun x -> int_of_string x) (read_line () |> String.split_on_char ' ')
 
-let initl =
-  List.map (fun x -> int_of_string x) (read_line () |> String.split_on_char ' ')
+(*let read_automata () =*)
+  let nEst = read_int () 
+  let init = read_int () 
+  let initl = read_int_list () 
+  let nfinl = read_int () 
+  let finl = read_int_list ()  
+  let ntrans = read_int () 
+  let trans = create_maquina ntrans 
 
-let nfinl = read_int ()
 
-let finl =
-  List.map (fun x -> int_of_string x) (read_line () |> String.split_on_char ' ')
 
-let ntrans = read_int ()
-let trans = create_maquina ntrans
 
 (*new Part*)
 
@@ -88,13 +88,10 @@ let possiveis_equivaletes lposs1 lposs2 finl =
   else false
 
 let estado_equi state_1 state_2 finl transicoes =
-  if
     possiveis_equivaletes
       (possiveis state_1 transicoes [])
       (possiveis state_2 transicoes [])
       finl
-  then true
-  else false
 
 let rec combinacoes_to_state combinacoes ret finl transicoes =
   match combinacoes with
@@ -183,6 +180,8 @@ let _print_result =
   printf "%d\n" nfinl;
   print_list finl;
   print_trans trans
+
+
 
 let minimized_automato =
   new_automato (initl @ finl) (distinguish trans [ initl; finl ] finl []) []

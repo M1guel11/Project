@@ -45,7 +45,21 @@ let rec remove_duplicates l =
 
 
 
-
+        let print_list_of_lists l =
+          List.iter (fun sublist ->
+            List.iter (fun elem -> print_int elem;  ) sublist;print_string ";";
+          
+          ) l
+        
+          let print_trans l =
+            List.iter (fun ((l1, l2), l3) ->
+              List.iter (fun x -> print_int x ) l1;
+              print_string " ";List.iter (fun x -> print_char x) l2;
+              print_string " ";List.iter (fun x -> print_int x ) l3;
+              print_newline();
+  
+            ) l
+          
 
 
 
@@ -66,20 +80,6 @@ let create_maquina c =
   done;
   !input
 
-let rec print_trans lst =
-  match List.rev lst with
-  | ((a, b), c) :: t ->
-      let () = printf "%d %c %d\n" a b c in
-      print_trans t
-  | [] -> ()
-
-let rec print_list lst =
-  match lst with
-  | [] -> ()
-  | [ e ] -> Printf.printf "%d\n" e
-  | h :: t ->
-      Printf.printf "%d " h;
-      print_list t
 
 let read_int_list () = List.map (fun x -> int_of_string x) (read_line () |> String.split_on_char ' ')
 
@@ -97,6 +97,12 @@ let read_int_list () = List.map (fun x -> int_of_string x) (read_line () |> Stri
 
 (*new Part*)
 
+let rec new_finl new_states finl ret =
+  let (a,b) = ret in
+  match  new_states with
+  | [] -> ret
+  | hd::tl -> if sublist hd finl then new_finl tl finl (a,hd::b)  else new_finl tl finl (hd::a,b) 
+
 let rec possiveis label transicoes ret =
   match transicoes with
   | ((a, b), c) :: tl ->
@@ -104,9 +110,6 @@ let rec possiveis label transicoes ret =
       else possiveis label tl ret
   | [] -> List.sort compare ret
 
-
-let val1 = possiveis 3 trans []
-let val2 = possiveis 5 trans []
 
 
 let compare_possibles poss1 poss2 finl =
@@ -139,9 +142,6 @@ let rec combinacoes lista ret =
       | x :: tl -> combinacoes tl (ret @ comb tl [] x)
 
 
-let sas= combinacoes (initl @ finl) []  
-
-
 let rec combinacoes_to_state list ret finl transicoes =
   match list with
   | (a, b) :: tl ->
@@ -154,47 +154,40 @@ let rec combinacoes_to_state list ret finl transicoes =
   | [] -> List.sort compare  (remove_duplicates ret)
    
 
-let yyy= combinacoes_to_state sas [] finl trans
-
-let transform_list states trans =
-  let new_st = List.concat b in
-  List.map (fun ((st, sym), tr) ->
-    if List.mem (List.hd st) new_st then
-      ((new_st, sym), tr)
-    else
-      ((st, sym), tr)) a
 
 
 
-let asdas= transform_list trans yyy
 
-let rec get_buddy x new_states =
-  match new_states with
-  | hd :: tl -> if List.mem (List.hd x) hd then hd else get_buddy x tl
-  | [] -> x
-
-
-let rec get_labels trans x ret =
+let rec new_transitions trans states ret =
+(*Melhorar funcao*)
+let rec return_new_state state new_states =
+ match new_states with 
+ | [] -> []
+ | hd::tl -> if sublist state hd then hd else return_new_state state tl
+in
+let rec return_new_label ini dest trans ret=
   match trans with
-  | k :: tl ->
-      let (a, b), _ = k in
-      if compare x a = 0 then get_labels tl x (ret @ b) else get_labels tl x ret
-  | [] -> ret
+  | [] ->  remove_duplicates (List.sort compare ret)
+  | ((a,b),c) ::tl -> if sublist a ini && sublist c dest then return_new_label ini dest tl (b@ret) else return_new_label ini dest tl ret
 
-let rec combine_labels trans ret current =
+in
+
+let rec update_trans trans  new_states  ret trans_aux=
   match trans with
-  | ((a, _), c) :: tl ->
-      if not (List.mem a current) then
-        combine_labels tl (((a, get_labels trans a []), c) :: ret) (a :: current)
-      else combine_labels tl ret current
   | [] -> ret
+  |  x :: tl ->
+          let ((a,b),c) = x in
+           update_trans tl new_states  ((((return_new_state a new_states), return_new_label (return_new_state a new_states) (return_new_state c new_states) trans_aux [] ),(return_new_state c new_states))::ret) trans_aux
 
-let rec final_trans_list new_trans new_states ret =
-  match new_trans with
-  | ((a, b), c) :: tl ->
-      let k = ((get_buddy a new_states, b), get_buddy c new_states) in
-      final_trans_list tl new_states (k :: ret)
-  | [] -> ret
+  in
+
+(remove_duplicates( update_trans trans states [] trans)) 
+
+
+
+
+
+
 
 (*output
   num estados
@@ -204,22 +197,17 @@ let rec final_trans_list new_trans new_states ret =
   lista estados fin
   lista transicoes(ini->label->destino)
 *)
-let _print_result =
-  printf "%d\n" nEst;
-  printf "%d\n" init;
-  print_list initl;
-  printf "%d\n" nfinl;
-  print_list finl
-  (*print_trans trans*)
+  let new_states = (combinacoes_to_state (combinacoes (initl@finl) []) [] finl trans)
+  let new_trans=  new_transitions trans  new_states []
 
+  let new_order= new_finl new_states finl ([],[])
+  let (new_initl, new_finl) = new_order
 
-(*
-let minimized_automato =
-  new_automato (initl @ finl) (distinguish trans [ initl; finl ] finl []) []
-
-let _u =
-  combine_labels
-    (remove_duplicates
-       (final_trans_list (new_trans trans []) minimized_automato []))
-    [] []
-*)
+  let print_result  =
+  printf "%d\n" (List.length new_states);
+  print_list_of_lists (List.sort compare new_initl);
+  print_newline ();
+  printf "%d\n" (List.length new_initl);
+  print_list_of_lists (List.sort compare new_finl);
+  print_newline ();
+  print_trans new_trans ;

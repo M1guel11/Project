@@ -84,10 +84,10 @@ let create_maquina c =
 let read_int_list () = List.map (fun x -> int_of_string x) (read_line () |> String.split_on_char ' ')
 
 (*let read_automata () =*)
-  let nEst = read_int () 
-  let init = read_int () 
+  let _nEst = read_int () 
+  let _init = read_int () 
   let initl = read_int_list () 
-  let nfinl = read_int () 
+  let _nfinl = read_int () 
   let finl = read_int_list ()  
   let ntrans = read_int () 
   let trans = create_maquina ntrans 
@@ -111,16 +111,13 @@ let rec possiveis label transicoes ret =
   | [] -> List.sort compare ret
 
 
-
+let compare_lists_possibles l1 l2 finl =
+  
 let compare_possibles poss1 poss2 finl =
   let a, b = poss1 in
   let x, y = poss2 in
    (List.compare  compare a x == 0  && List.compare compare b y == 0 || List.compare compare a x == 0 && sublist b finl && sublist y finl ) 
-
-  
-
-
-let rec compare_lists_possibles l1 l2 finl =
+in
    if List.length l1 = List.length l2 then
       List.fold_left2 (fun acc x y ->
         if acc = false then false
@@ -158,7 +155,7 @@ let rec combinacoes_to_state list ret finl transicoes =
 
 
 
-let rec new_transitions trans states ret =
+let  new_transitions trans states =
 (*Melhorar funcao*)
 let rec return_new_state state new_states =
  match new_states with 
@@ -176,7 +173,7 @@ let rec update_trans trans  new_states  ret trans_aux=
   match trans with
   | [] -> ret
   |  x :: tl ->
-          let ((a,b),c) = x in
+          let ((a,_),c) = x in
            update_trans tl new_states  ((((return_new_state a new_states), return_new_label (return_new_state a new_states) (return_new_state c new_states) trans_aux [] ),(return_new_state c new_states))::ret) trans_aux
 
   in
@@ -198,12 +195,13 @@ let rec update_trans trans  new_states  ret trans_aux=
   lista transicoes(ini->label->destino)
 *)
   let new_states = (combinacoes_to_state (combinacoes (initl@finl) []) [] finl trans)
-  let new_trans=  new_transitions trans  new_states []
+  let new_trans=  new_transitions trans  new_states
 
   let new_order= new_finl new_states finl ([],[])
   let (new_initl, new_finl) = new_order
 
-  let print_result  =
+  let _print_result  =
+  print_string "-------------OUTPUT---------------\n";
   printf "%d\n" (List.length new_states);
   print_list_of_lists (List.sort compare new_initl);
   print_newline ();

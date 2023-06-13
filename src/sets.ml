@@ -57,6 +57,7 @@ let create_maquina c =
     i := !i + 1
   done;
   !transitions
+  
 
 let print_states s =
   States.iter
@@ -109,10 +110,12 @@ let new_s x trans states fin =
     New_States.fold
       (fun a acc ->
         if
-          (New_States.compare l (in_reach a trans) = 0
+          (New_States.compare l (in_reach a trans)
+           = 0 (*list of possibles equivalent*)
           || New_States.subset l fin
              && New_States.subset (in_reach a trans) fin)
           && New_States.cardinal l = New_States.cardinal (in_reach a trans)
+          (*are not equivalent but both have final states*)
         then States.union a acc
         else acc)
       states x
@@ -120,24 +123,23 @@ let new_s x trans states fin =
   result
 
 let new_l new_s trans =
-  let labels = ref Labels.empty in
-  New_States.iter
-    (fun state ->
-      Transitions.iter
-        (fun (x, y, z) ->
-          if States.subset x state then labels := Labels.union !labels y)
-        trans)
-    new_s;
-  !labels
+  New_States.fold
+    (fun state acc ->
+      Transitions.fold
+        (fun (x, y, _) labels ->
+          if States.subset x state then Labels.union labels y else labels)
+        trans acc)
+    new_s Labels.empty
 
 let update_transitions trans states fin =
   Transitions.fold
-    (fun (x, y, z) acc ->
-      let updated_x = new_s x trans states fin in
-      let updated_z = new_s z trans states fin in
-      let updated_labels = new_l (New_States.singleton updated_x) trans in
-      let updated_transition = (updated_x, updated_labels, updated_z) in
-      Transitions.add updated_transition acc)
+    (fun (x, _y, z) acc ->
+      let updated_transition =
+        ( new_s x trans states fin,
+          new_l (New_States.singleton (new_s x trans states fin)) trans,
+          new_s z trans states fin )
+      in
+        Transitions.add updated_transition acc)
     trans Transitions.empty
 
 (*let read_automata () =*)
@@ -164,19 +166,3 @@ let () =
   print_transitions
     (update_transitions trans (New_States.union initl finl) finl)
 
-(* module MyInts  = Set.Make(struct
-   type t = int
-   let compare = Stdlib.compare
-   end)
-
-   module Pairs = Set.Make(struct
-     type t = int*int
-     let compare a b =
-       let a1,a2 = a in
-       let b1,b2 = b in
-       let r = Stdlib.compare a1 b1 in
-       if r = 0 then Stdlib.compare a2 b2 else r
-     end)
-
-
-   let print_set s =Printf.printf "{"; Pairs.iter (fun (x,y) -> Printf.printf "(%d, %d); " x y) s; Printf.printf "}\n" *)

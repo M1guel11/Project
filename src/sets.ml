@@ -31,15 +31,6 @@ module TransitionsSet = struct
       let r1 = Stdlib.compare y0 y1 in
       if r1 = 0 then Stdlib.compare z0 z1 else r1
     else r
-
-  (* let compare (x0, y0, z0) (x1, y1, z1) =
-     match Stdlib.compare x0 x1 with
-     | 0 -> (
-         match Stdlib.compare y0 y1 with
-         | 0 -> Stdlib.compare z0 z1
-         | result -> result
-       )
-     | result -> result *)
 end
 
 module Transitions = Set.Make (TransitionsSet)

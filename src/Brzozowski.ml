@@ -102,7 +102,7 @@ let print_automaton a =
 let alghorithm a =
   let inv_trans trans = List.map (fun (x, y, z) -> (z, y, x)) trans in
   let reach states trans =
-    let rec helper acc state =
+    let rec helper _ state =
       List.fold_left
         (fun acc (x, _, z) -> if List.mem state x then z @ acc else acc)
         [] trans

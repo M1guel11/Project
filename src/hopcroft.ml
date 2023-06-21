@@ -1,5 +1,5 @@
 open Scanf
-open Printf
+
 
 type state = int
 type symbol = char

@@ -37,6 +37,19 @@ end
 (*input*)
 
 
+let read_states () =
+  read_line () |> String.split_on_char ' '
+  |> List.map (fun x -> int_of_string x)
+  |> List.map UnionFind.make
+
+
+  
+
+
+
+let root = read_int () |> UnionFind.make 
+let u = read_states () 
+
 
 
 

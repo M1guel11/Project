@@ -1,6 +1,5 @@
 open Scanf
 
-
 type state = int
 type symbol = char
 type transition = state list * symbol list * state list
@@ -60,42 +59,55 @@ let automaton =
   { states; alphabet; transitions = trans; initial = iniS; finals = finiS }
 
 (*prints*)
-let print_states a =
-  a
-  |> List.iter (fun x ->
-         List.iter
-           (fun y ->
-             print_int y;
-             print_string " ")
-           x;
-         print_newline ())
-
-let print_transitions a =
-  a
-  |> List.iter (fun (a, b, c) ->
-         List.iter
-           (fun x ->
-             print_int x;
-             print_string " ")
-           a;
-         print_string "-> ";
-         List.iter
-           (fun x ->
-             print_char x;
-             print_string " ")
-           b;
-         print_string "-> ";
-         List.iter
-           (fun x ->
-             print_int x;
-             print_string " ")
-           c;
-         print_newline ())
-
 let print_automaton a =
+  let print_states p =
+    p
+    |> List.iter (fun x ->
+           List.iter
+             (fun y ->
+               print_int y;
+               print_string "|")
+             x)
+  in
+
+  let print_labels labels =
+    List.iter
+      (fun label ->
+        print_char label;
+        print_string " ")
+      labels
+  in
+
+  let print_transitions t =
+    t
+    |> List.iter (fun (a, b, c) ->
+           List.iter
+             (fun x ->
+               print_int x;
+               print_string " ")
+             a;
+           print_string "-> ";
+           List.iter
+             (fun x ->
+               print_char x;
+               print_string " ")
+             b;
+           print_string "-> ";
+           List.iter
+             (fun x ->
+               print_int x;
+               print_string " ")
+             c;
+           print_newline ())
+  in
+
   print_states a.states;
+  print_newline ();
+  print_labels a.alphabet;
+  print_newline ();
   print_transitions a.transitions;
   print_states a.initial;
+  print_newline ();
   print_states a.finals;
   print_newline ()
 
@@ -153,16 +165,18 @@ let hopcroft automaton =
   let new_transitions trans states fin =
     List.map
       (fun (a, _, c) ->
-        (new_s a trans states fin , new_l (new_s a trans states fin) trans, new_s c trans states fin))
+        ( new_s a trans states fin,
+          new_l (new_s a trans states fin) trans,
+          new_s c trans states fin ))
       trans
     |> List.sort_uniq compare
-  
-in
+  in
 
   {
     states = new_states automaton.states;
     alphabet = automaton.alphabet;
-    transitions = new_transitions automaton.transitions automaton.states automaton.finals;
+    transitions =
+      new_transitions automaton.transitions automaton.states automaton.finals;
     initial = new_states automaton.initial;
     finals = new_states automaton.finals;
   }

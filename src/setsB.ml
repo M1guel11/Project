@@ -125,17 +125,19 @@ let print_states s =
       print_string " ")
     s
     in
-let print_newstates set_of_sets =
-  New_States.iter
-    (fun set ->
-      States.iter
-        (fun element ->
-          print_int element;
-          print_string "|")
-        set;
+    let print_newstates set_of_sets =
+      New_States.iter
+        (fun set ->
+          States.iter
+            (fun element ->
+              print_int element;
+              
+            )
+            set;
+          print_string " | ";
         )
-    set_of_sets;
-    print_newline ();
+        set_of_sets;
+      print_newline ()
         in
 let print_labels labels =
   Labels.iter

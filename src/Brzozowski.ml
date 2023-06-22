@@ -147,7 +147,7 @@ let alghorithm a =
   in
 
   {
-    states = List.filter (fun sublist -> sublist <> []) (determinization a);
+    states = List.filter (fun sublist -> sublist <> []) (determinization a); (*tirar o estado vazio*)
     alphabet = a.alphabet;
     transitions =  List.sort_uniq compare  (new_t a.transitions);
     initial = new_s (List.concat a.initial) (determinization a);

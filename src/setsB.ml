@@ -1,6 +1,7 @@
 open Scanf
 open Printf
 
+
 (*default type of automaton*)
 type state = int
 type symbol = char
@@ -60,9 +61,7 @@ let automaton_def =
 
   { states; alphabet; transitions = trans; initial = iniS; finals = finiS }
 
-
-
-  (*deafult type to set type*)
+(*deafult type to set type*)
 module States = Set.Make (struct
   type t = int
 
@@ -104,102 +103,99 @@ type automaton = {
   finals : New_States.t;
 }
 
-
 let transform_automaton (def : automaton_def) : automaton =
   let states = List.map States.of_list def.states |> New_States.of_list in
   let alphabet = Labels.of_list def.alphabet in
-  let transitions = List.map (fun (x, y, z) -> (States.of_list x, Labels.of_list y, States.of_list z)) def.transitions |> Transitions.of_list in
+  let transitions =
+    List.map
+      (fun (x, y, z) -> (States.of_list x, Labels.of_list y, States.of_list z))
+      def.transitions
+    |> Transitions.of_list
+  in
   let initial = List.map States.of_list def.initial |> List.hd in
   let finals = List.map States.of_list def.finals |> New_States.of_list in
   { states; alphabet; transitions; initial; finals }
 
+(*print*)
+let print_automaton a =
+  let print_states s =
+    States.iter
+      (fun x ->
+        print_int x;
+        print_string " ")
+      s
+  in
+  let print_newstates set_of_sets =
+    New_States.iter
+      (fun set ->
+        States.iter (fun element -> print_int element; print_string " ") set;
+        print_string "| ")
+      set_of_sets;
+    print_newline ()
+  in
+  let print_labels labels =
+    Labels.iter
+      (fun label ->
+        print_char label;
+        print_string " ")
+      labels
+  in
 
-
- (*print*) 
-let  print_automaton a =
-
-let print_states s =
-  States.iter
-    (fun x ->
-      print_int x;
-      print_string " ")
-    s
-    in
-    let print_newstates set_of_sets =
-      New_States.iter
-        (fun set ->
-          States.iter
-            (fun element ->
-              print_int element;
-              
-            )
-            set;
-          print_string " | ";
-        )
-        set_of_sets;
-      print_newline ()
-        in
-let print_labels labels =
-  Labels.iter
-    (fun label ->
-      print_char label;
-      print_string " ")
-    labels;
-    
-    in
-let print_transitions transitions =
-  Transitions.iter
-    (fun (x, y, z) ->
-      print_states x;
-      printf "-> ";
-      print_labels y;
-      printf "-> ";
-      print_states z;
-      print_newline ())
-    transitions
-    in
-print_newstates a.states;
-print_labels a.alphabet;
-print_newline ();
-print_transitions a.transitions;
-print_newstates  (New_States.singleton a.initial);
-print_newstates a.finals;;
-
-
+  let print_transitions transitions =
+    Transitions.iter
+      (fun (x, y, z) ->
+        print_states x;
+        printf "-> ";
+        print_labels y;
+        printf "-> ";
+        print_states z;
+        print_newline ())
+      transitions
+  in
+  print_newstates a.states;
+  print_labels a.alphabet;
+  print_newline ();
+  print_transitions a.transitions;
+  print_newstates (New_States.singleton a.initial);
+  print_newstates a.finals
 
 (*alghorithm*)
 let brzozowski a =
-  let inv_trans  = Transitions.map (fun (x, y, z) -> (z, y, x)) a.transitions in
+  let inv_trans = Transitions.map (fun (x, y, z) -> (z, y, x)) a.transitions in
   let reach s trans =
     let acc = ref States.empty in
-    Transitions.iter (fun (x, _, z) -> if States.subset x s  then acc := States.union z !acc) trans;
+    Transitions.iter
+      (fun (x, _, z) -> if States.subset x s then acc := States.union z !acc)
+      trans;
     !acc
-  in 
+  in
   let determinization =
-    let queue = [List.fold_left States.union States.empty (New_States.elements a.finals)] in
-    let rec calculate queue seen = 
-      match queue with 
-      | [] -> New_States.filter (fun x -> not( States.is_empty x) )seen
-      | x :: tl ->
-        if List.mem (reach x inv_trans) queue  then
-        
-          calculate tl (New_States.add x seen)
-        else
-          calculate ((reach x inv_trans) :: tl) (New_States.add x seen)
-    
+    let queue =
+      [
+        List.fold_left States.union States.empty (New_States.elements a.finals);
+      ]
     in
+    let rec calculate queue seen =
+      match queue with
+      | [] -> New_States.filter (fun x -> not (States.is_empty x)) seen
+      | x :: tl ->
+          if List.mem (reach x inv_trans) queue then
+            calculate tl (New_States.add x seen)
+          else calculate (reach x inv_trans :: tl) (New_States.add x seen)
+    in
+
     calculate queue New_States.empty
-  
   in
 
   let rec new_s element lst =
     let aux = New_States.elements lst in
-      match aux with
-      | [] -> States.empty
-      | x::tl -> if States.subset element x then x else new_s element (New_States.of_list tl)
-      
-  
+    match aux with
+    | [] -> States.empty
+    | x :: tl ->
+        if States.subset element x then x
+        else new_s element (New_States.of_list tl)
   in
+
   let new_l s trans =
     Transitions.fold
       (fun (src, labels, _) acc ->
@@ -209,28 +205,36 @@ let brzozowski a =
   let new_t trans =
     Transitions.map
       (fun (x, _, z) ->
-        ( (new_s x determinization ),
-           new_l (new_s x (determinization)) trans,
-          new_s z (determinization) ))
+        ( new_s x determinization,
+          new_l (new_s x determinization) trans,
+          new_s z determinization ))
       trans
   in
 
-
-
   {
-    states =  (determinization); (*tirar o estado vazio*)
+    states = determinization;
+    (*tirar o estado vazio*)
     alphabet = a.alphabet;
     transitions = new_t a.transitions;
     initial = new_s a.initial determinization;
-    finals = New_States.fold (fun x acc -> New_States.add (new_s x determinization) acc) a.finals New_States.empty;
+    finals =
+      New_States.fold
+        (fun x acc -> New_States.add (new_s x determinization) acc)
+        a.finals New_States.empty;
   }
-
 
 (*output*)
 
+let aut = transform_automaton automaton_def 
+
+
+let t0 = Benchmark.make 0L 
+(* do something here *)
+let brzozowski = brzozowski aut 
+let b = Benchmark.sub (Benchmark.make 0L) t0;;
+print_endline "Benchmark results:";
+print_endline (Benchmark.to_string b)   
 
 
 
-let aut = transform_automaton automaton_def
-
-let () = print_automaton (brzozowski aut)
+let () = print_automaton (brzozowski)

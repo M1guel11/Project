@@ -208,11 +208,15 @@ let print_automaton automaton =
 
 (*hopcroft*)
 let hopcroft a =
-  let get_children s =
+  let get_sucessors s =
     List.fold_left
-      (fun acc x -> if (UnionFind.find x).value = s then x :: acc else acc)
+      (fun acc x -> if (UnionFind.find x).value = s then x.value :: acc else acc)
       [] a.states
   in
+ 
+    
+    
+    
 
 
   {

@@ -1,4 +1,5 @@
 (executable
- (name setsB)
+ (name main)
  (libraries benchmark)
+ (link_flags -linkall)
  (public_name dfa_minimization))

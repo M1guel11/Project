@@ -2,7 +2,6 @@ open Scanf
 open Printf
 open Set
 
-
 (*input*)
 
 (*default type of automaton*)
@@ -91,9 +90,6 @@ module UnionFind = struct
     else (
       root_y.parent := Some root_x;
       root_x.rank := !(root_x.rank) + 1)
-
-
- 
 end
 
 (*input*)
@@ -208,19 +204,55 @@ let print_automaton automaton =
 
 (*hopcroft*)
 let hopcroft a =
-  let get_sucessors s =
-    List.fold_left
-      (fun acc x -> if (UnionFind.find x).value = s then x.value :: acc else acc)
-      [] a.states
+  let cmp_successors s1 s2 =
+    let get_successors (s : int UnionFind.union_find) =
+      List.fold_left
+        (fun acc x ->
+          if (UnionFind.find x).value = s.value then x.value :: acc else acc)
+        [] a.states
+    in
+    let c1 = get_successors s1 in
+    let c2 = get_successors s2 in
+    let f =
+      List.fold_left
+        (fun acc (x : int UnionFind.union_find) -> x.value :: acc)
+        [] a.finals
+    in
+    let isfinal state =
+      List.for_all (fun sublist -> List.exists (fun f -> f = sublist) f) state
+    in
+    List.compare compare c1 c2 = 0
+    || (isfinal c1 && isfinal c2 && List.length c1 = List.length c2)
   in
- 
-    
-    
-    
+  let new_l s =
+    let l =
+      List.fold_left
+        (fun acc (x, y, _) -> if x = s then y @ acc else acc)
+        [] a.transitions
+    in
+    List.sort_uniq compare l
+  in
 
+  let rec new_states l aux rm  =
+    match l with
+    | [] -> aux
+    | x :: tl ->
+        if List.exists (fun y -> cmp_successors x y) tl then (
+          let y = List.find (fun y -> cmp_successors x y) tl in
+          let new_rm = y :: rm in
+          let new_p = UnionFind.make (UnionFind.find x).value in
+          let new_x = UnionFind.make x.value in
+          UnionFind.union new_p new_x;
 
+          let new_aux = new_x :: aux in
+          new_states tl new_aux new_rm )
+        else if List.mem x rm then new_states tl aux rm 
+        else new_states tl (x :: aux) rm 
+  in
+  let s= new_states a.states [] []  
+in
   {
-    states = a.states;
+    states = s;
     alphabet = a.alphabet;
     transitions = a.transitions;
     initial = a.initial;
@@ -231,7 +263,3 @@ let hopcroft a =
 
 let a = hopcroft (transform_to_union_find automaton_def)
 let () = print_automaton a
-
-(*output*)
-
-(*output*)

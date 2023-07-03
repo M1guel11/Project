@@ -61,13 +61,11 @@ let automaton =
 (*prints*)
 let print_automaton a =
   let print_states p =
-    p
-    |> List.iter (fun x ->
-           List.iter
-             (fun y ->
-               print_int y;
-               print_string "|")
-             x)
+    List.iter
+      (fun set ->
+        List.iter (fun element -> print_int element) set;
+        print_string " | ")
+      p
   in
 
   let print_labels labels =
@@ -112,74 +110,82 @@ let print_automaton a =
   print_newline ()
 
 let hopcroft automaton =
-  let new_s x trans states fin =
-    let possibles state trans =
+  let new_s x =
+    let possibles state =
       List.fold_left
         (fun ret (a, _, c) ->
           if List.compare compare state a = 0 then c :: ret else ret)
-        [] trans
+        [] automaton.transitions
     in
-    let l = possibles x trans in
+    let l = possibles x in
     let result =
-      let isfinal state fin =
+      let isfinal state =
         List.for_all
-          (fun sublist -> List.exists (fun f -> f = sublist) fin)
+          (fun sublist -> List.exists (fun f -> f = sublist) automaton.finals)
           state
       in
       List.fold_left
         (fun acc a ->
           if
-            List.compare compare l (possibles a trans) = 0
-            || isfinal l fin
-               && isfinal (possibles a trans) fin
-               && List.length l = List.length (possibles a trans)
+            List.compare compare l (possibles a) = 0
+            || isfinal l
+               && isfinal (possibles a)
+               && List.length l = List.length (possibles a)
           then a @ acc
           else acc)
-        [] states
+        [] automaton.states
     in
     result
   in
   let new_states states =
-    List.map
-      (fun x -> new_s x automaton.transitions automaton.states automaton.finals)
-      states
-    |> List.sort_uniq compare
+    List.map (fun x -> new_s x) states |> List.sort_uniq compare
   in
-  let new_l states transitions =
-    let labels =
+
+  let n_s = new_states automaton.states in
+  let new_transitions =
+    let new_l s d =
       List.fold_left
-        (fun acc _state ->
-          let state_labels =
-            List.fold_left
-              (fun acc (sources, labels, _) ->
-                if List.exists (fun s -> List.mem s states) sources then
-                  List.append acc labels
-                else acc)
-              [] transitions
-          in
-          state_labels @ acc)
-        [] states
+        (fun acc (x, y, z) ->
+          if List.compare compare x s = 0 && List.compare compare z d = 0 then
+            y @ acc
+          else acc)
+        [] automaton.transitions
     in
-    List.sort_uniq compare labels
-  in
-  let new_transitions trans states fin =
-    List.map
-      (fun (a, _, c) ->
-        ( new_s a trans states fin,
-          new_l (new_s a trans states fin) trans,
-          new_s c trans states fin ))
-      trans
-    |> List.sort_uniq compare
+    List.fold_left
+      (fun acc x ->
+        List.fold_left
+          (fun acc2 y ->
+            let aux = (new_s x, List.sort_uniq compare (new_l x y), new_s y) in
+            if List.length (new_l x y) = 0 then acc2
+            else
+              match
+                List.find_opt
+                  (fun (a, _, c) ->
+                    List.compare compare (new_s x) a = 0
+                    && List.compare compare c (new_s y) = 0)
+                  acc2
+              with
+              | Some (k, w, t) ->
+                  List.filter
+                    (fun (a, _, c) ->
+                      not
+                        (List.compare compare (new_s x) a = 0
+                        && List.compare compare c (new_s y) = 0))
+                    acc2
+                  |> fun filtered_acc2 ->
+                  (k, List.sort_uniq compare (w @ new_l x y), t)
+                  :: filtered_acc2
+              | None -> aux :: acc2)
+          acc automaton.states)
+      [] automaton.states
   in
 
   {
-    states = new_states automaton.states;
+    states = n_s;
     alphabet = automaton.alphabet;
-    transitions =
-      new_transitions automaton.transitions automaton.states automaton.finals;
+    transitions = List.sort_uniq compare new_transitions;
     initial = new_states automaton.initial;
     finals = new_states automaton.finals;
   }
 
 let result = hopcroft automaton
-let () = print_automaton result

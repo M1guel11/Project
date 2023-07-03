@@ -227,13 +227,11 @@ let brzozowski a =
 
 let aut = transform_automaton automaton_def 
 
-let t0 = Benchmark.make 0L 
+
 
 let brzozowski = brzozowski aut 
 
-let b = Benchmark.sub (Benchmark.make 0L) t0;;
-print_endline "Benchmark results:";
-print_endline (Benchmark.to_string b)   
+
 
 
 

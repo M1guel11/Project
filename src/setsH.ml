@@ -1,8 +1,7 @@
 
 open Printf
 
-
-(*deafult type to set type*)
+(*default type to set type*)
 module States = Set.Make (struct
   type t = int
 
@@ -109,56 +108,58 @@ let print_automaton a =
 
 (*output*)
 let hopcroft aut =
-  let in_reach x trans =
+  let in_reach x =
     Transitions.fold
       (fun (a, _, z) acc ->
         if States.compare a x = 0 then New_States.add z acc else acc)
-      trans New_States.empty
+      aut.transitions New_States.empty
   in
 
-  let new_s x trans states fin =
-    let l = in_reach x trans in
+  let new_s x =
+    let l = in_reach x in
     let result =
       New_States.fold
         (fun a acc ->
           if
-            (New_States.compare l (in_reach a trans)
+            (New_States.compare l (in_reach a )
              = 0 (*list of possibles equivalent*)
-            || New_States.subset l fin
-               && New_States.subset (in_reach a trans) fin)
-            && New_States.cardinal l = New_States.cardinal (in_reach a trans)
+            || New_States.subset l aut.finals
+               && New_States.subset (in_reach a ) aut.finals)
+            && New_States.cardinal l = New_States.cardinal (in_reach a )
             (*are not equivalent but both have final states*)
           then States.union a acc
           else acc)
-        states x
+        aut.states x
     in
     result
   in
 
-  let new_l new_s trans =
-    New_States.fold
-      (fun state acc ->
-        Transitions.fold
-          (fun (x, y, _) labels ->
-            if States.subset x state then Labels.union labels y else labels)
-          trans acc)
-      new_s Labels.empty
-  in
-  let update_transitions trans states fin =
+
+      
+  
+  let update_transitions  =
+    let new_l ini dest =
+   
+      Transitions.fold
+        (fun (x, y, z) labels ->
+          if New_States.exists (fun a -> States.subset x a ) ini && New_States.exists (fun b -> States.subset z b ) dest  then Labels.union labels y else labels)
+       aut.transitions  Labels.empty
+
+        in
     Transitions.fold
       (fun (x, _y, z) acc ->
         let updated_transition =
-          ( new_s x trans states fin,
-            new_l (New_States.singleton (new_s x trans states fin)) trans,
-            new_s z trans states fin )
+          ( new_s x ,
+            new_l (New_States.singleton (new_s x ) ) (New_States.singleton (new_s z )) ,
+            new_s z )
         in
         Transitions.add updated_transition acc)
-      trans Transitions.empty
+      aut.transitions Transitions.empty
   in
-  let new_states param finl trans =
+  let new_states param  =
     New_States.fold
       (fun x acc ->
-        let result = new_s x trans param finl in
+        let result = new_s x  in
         New_States.add result acc)
       param
       New_States.empty
@@ -166,12 +167,11 @@ let hopcroft aut =
   in
 
   {
-    states = new_states aut.states aut.finals aut.transitions;
+    states = new_states aut.states ;
     alphabet = aut.alphabet;
-    transitions = update_transitions  aut.transitions aut.states aut.finals;
-    initial = new_s (aut.initial) aut.transitions aut.states aut.finals;
-    finals = New_States.singleton (new_s (New_States.choose aut.finals) aut.transitions aut.states aut.finals);
+    transitions = update_transitions ;
+    initial = new_s (aut.initial) ;
+    finals = New_States.fold (fun x acc -> New_States.add (new_s x ) acc) aut.finals New_States.empty;
 
   }
-
 

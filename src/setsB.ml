@@ -1,7 +1,6 @@
 open Scanf
 open Printf
 
-
 (*default type of automaton*)
 type state = int
 type symbol = char
@@ -128,7 +127,11 @@ let print_automaton a =
   let print_newstates set_of_sets =
     New_States.iter
       (fun set ->
-        States.iter (fun element -> print_int element; print_string " ") set;
+        States.iter
+          (fun element ->
+            print_int element;
+            print_string " ")
+          set;
         print_string "| ")
       set_of_sets;
     print_newline ()
@@ -225,14 +228,6 @@ let brzozowski a =
 
 (*output*)
 
-let aut = transform_automaton automaton_def 
-
-
-
-let brzozowski = brzozowski aut 
-
-
-
-
-
-let () = print_automaton (brzozowski)
+let aut = transform_automaton automaton_def
+let brzozowski = brzozowski aut
+let () = print_automaton brzozowski

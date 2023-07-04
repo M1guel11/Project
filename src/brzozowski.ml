@@ -1,5 +1,5 @@
-open Scanf
 open Printf
+open Scanf
 
 type state = int
 type symbol = char
@@ -60,70 +60,78 @@ let automaton =
   { states; alphabet; transitions = trans; initial = iniS; finals = finiS }
 
 (*prints*)
-let print_states a =
-  a
-  |> List.iter (fun x ->
-         List.iter
-           (fun y ->
-             print_int y;
-             print_string " ")
-           x;
-         print_newline ())
-
-let print_transitions a =
-  a
-  |> List.iter (fun (a, b, c) ->
-         List.iter
-           (fun x ->
-             print_int x;
-             print_string " ")
-           a;
-         print_string "-> ";
-         List.iter
-           (fun x ->
-             print_char x;
-             print_string " ")
-           b;
-         print_string "-> ";
-         List.iter
-           (fun x ->
-             print_int x;
-             print_string " ")
-           c;
-         print_newline ())
 
 let print_automaton a =
+  let print_states p =
+    List.iter
+      (fun set ->
+        List.iter (fun element -> print_int element) set;
+        print_string " | ")
+      p
+  in
+
+  let print_transitions a =
+    a
+    |> List.iter (fun (a, b, c) ->
+           List.iter
+             (fun x ->
+               print_int x;
+               print_string " ")
+             a;
+           print_string "-> ";
+           List.iter
+             (fun x ->
+               print_char x;
+               print_string " ")
+             b;
+           print_string "-> ";
+           List.iter
+             (fun x ->
+               print_int x;
+               print_string " ")
+             c;
+           print_newline ())
+  in
   print_states a.states;
+  print_newline ();
   print_transitions a.transitions;
   print_states a.initial;
+  print_newline ();
   print_states a.finals;
   print_newline ()
 
-let alghorithm a =
-  let inv_trans trans = List.map (fun (x, y, z) -> (z, y, x)) trans in
-  let reach states trans =
-    let rec helper _ state =
-      List.fold_left
-        (fun acc (x, _, z) -> if List.mem state x then z @ acc else acc)
-        [] trans
-    in
-    List.concat_map (helper []) states
+let brzozowski aut =
+  let inv_trans = List.map (fun (x, y, z) -> (z, y, x)) aut.transitions in
+  let reach s l =
+    List.fold_left
+      (fun acc x ->
+        List.fold_left
+          (fun acc (a, b, c) ->
+            if List.mem x a && List.mem l b then c @ acc else acc)
+          acc inv_trans)
+      [] s
+    |> List.sort_uniq compare
   in
-  let determinization a =
-    let trans = inv_trans a.transitions in
-    let queue = [ List.concat a.finals ] in
+  let determinization =
+    let queue =  [List.concat aut.finals] in
     let seen = [] in
     let rec calculate queue seen =
       match queue with
       | [] -> seen
       | x :: tl ->
-          if List.mem (List.sort_uniq compare (reach x trans)) queue then
-            calculate tl (x :: seen)
-          else
-            calculate (List.sort_uniq compare (reach x trans) :: tl) (x :: seen)
+          let reachables =
+            List.fold_left (fun acc l -> reach x l :: acc) [] aut.alphabet
+            |> List.sort_uniq compare
+            |> List.filter (fun x -> not (List.mem x queue))
+            |> List.filter (fun x -> x <> [])
+          in
+          if reachables <> [] then calculate (tl @ reachables) (x :: seen)
+          else calculate tl (x :: seen)
     in
-    calculate queue seen
+
+    calculate queue seen |> List.sort_uniq compare
   in
+
 
   let new_s element lst =
     List.filter
@@ -140,18 +148,18 @@ let alghorithm a =
   let new_t trans =
     List.map
       (fun (x, _, z) ->
-        ( List.concat (new_s x (determinization a)),
-          List.sort_uniq compare ( new_l (List.concat (new_s x (determinization a))) trans),
-          List.concat (new_s z (determinization a)) ))
+        ( List.concat (new_s x (determinization )),
+          List.sort_uniq compare ( new_l (List.concat (new_s x (determinization ))) trans),
+          List.concat (new_s z (determinization )) ))
       trans
   in
-
   {
-    states = List.filter (fun sublist -> sublist <> []) (determinization a); (*tirar o estado vazio*)
-    alphabet = a.alphabet;
-    transitions =  List.sort_uniq compare  (new_t a.transitions);
-    initial = new_s (List.concat a.initial) (determinization a);
-    finals = new_s (List.concat a.finals) (determinization a);
+    states = determinization;
+    (*tirar o estado vazio*)
+    alphabet = aut.alphabet;
+    transitions = inv_trans;
+    initial = aut.initial;
+    finals = aut.finals;
   }
 
-let automaton = alghorithm automaton
+let x = brzozowski automaton

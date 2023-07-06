@@ -59,11 +59,15 @@ let determinization (aut : Hopcroft.automaton)  : Hopcroft.automaton=
       match queue with
       | [] -> seen
       | x :: tl ->
+        if List.mem x seen then
+          calculate tl seen
+        else
           let reachables =
             List.fold_left (fun acc l -> reach x l :: acc) [] aut.alphabet
             |> List.sort_uniq compare
             |> List.filter (fun x -> not (List.mem x queue))
             |> List.filter (fun x -> x <> [])
+          
           in
           if reachables <> [] then calculate (tl @ reachables) (x :: seen)
           else calculate tl (x :: seen)

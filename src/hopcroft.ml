@@ -63,7 +63,7 @@ let print_automaton a =
   let print_states p =
     List.iter
       (fun set ->
-        List.iter (fun element -> print_int element) set;
+        List.iter (fun element -> print_int element; print_string ";") set;
         print_string " | ")
       p
   in
@@ -135,7 +135,7 @@ let hopcroft automaton =
           else acc)
         [] automaton.states
     in
-    result
+    result |> List.sort_uniq compare
   in
   let new_states states =
     List.map (fun x -> new_s x) states |> List.sort_uniq compare
@@ -184,8 +184,8 @@ let hopcroft automaton =
     states = n_s;
     alphabet = automaton.alphabet;
     transitions = List.sort_uniq compare new_transitions;
-    initial = new_states automaton.initial;
-    finals = new_states automaton.finals;
+    initial = new_states automaton.initial ;
+    finals = new_states automaton.finals ;
   }
 
 let result = hopcroft automaton

@@ -71,7 +71,7 @@ let print_automaton a =
         States.iter
           (fun element ->
             print_int element;
-            
+            print_string ";"
           )
           set;
         print_string " | ";

@@ -49,8 +49,10 @@ print_endline (Benchmark.to_string time_hs) ;
 (*Brzozowski lists*)
 let t0_bl = Benchmark.make 0L in
 
-let brz_set_alg = Brzozowski.brzozowski x in
+let brz_set_alg =  Brzozowski.brzozowski x 
 
+
+in
  
 let  time_bl = Benchmark.sub (Benchmark.make 0L) t0_bl in
 Brzozowski.print_automaton brz_set_alg;

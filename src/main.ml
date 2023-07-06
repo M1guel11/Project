@@ -51,7 +51,6 @@ let t0_bl = Benchmark.make 0L in
 
 let brz_set_alg =  Brzozowski.brzozowski x 
 
-
 in
  
 let  time_bl = Benchmark.sub (Benchmark.make 0L) t0_bl in

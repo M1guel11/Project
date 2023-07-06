@@ -1,8 +1,6 @@
-
-
 (*prints*)
 
-let print_automaton (a: Hopcroft.automaton) =
+let print_automaton (a : Hopcroft.automaton) =
   let print_states p =
     List.iter
       (fun set ->
@@ -41,7 +39,7 @@ let print_automaton (a: Hopcroft.automaton) =
   print_states a.finals;
   print_newline ()
 
-let determinization (aut : Hopcroft.automaton)  : Hopcroft.automaton=
+let determinization (aut : Hopcroft.automaton) : Hopcroft.automaton =
   let reach s l =
     List.fold_left
       (fun acc x ->
@@ -53,24 +51,23 @@ let determinization (aut : Hopcroft.automaton)  : Hopcroft.automaton=
     |> List.sort_uniq compare
   in
   let determinization =
-    let queue = List.sort_uniq compare [ List.concat aut.initial ]  in
+    let queue = List.sort_uniq compare [ List.concat aut.initial ] in
     let seen = [] in
     let rec calculate queue seen =
       match queue with
       | [] -> seen
       | x :: tl ->
-        if List.mem x seen then
-          calculate tl seen
-        else
-          let reachables =
-            List.fold_left (fun acc l -> reach x l :: acc) [] aut.alphabet
-            |> List.sort_uniq compare
-            |> List.filter (fun x -> not (List.mem x queue))
-            |> List.filter (fun x -> x <> [])
-          
-          in
-          if reachables <> [] then calculate (tl @ reachables) (x :: seen)
-          else calculate tl (x :: seen)
+          if List.mem x seen then calculate tl seen
+          else
+            let reachables =
+              List.fold_left (fun acc l -> reach x l :: acc) [] aut.alphabet
+              |> List.sort_uniq compare
+              |> List.filter (fun x -> not (List.mem x queue))
+              |> List.filter (fun x -> x <> [])
+            in
+
+            if reachables <> [] then calculate (tl @ reachables) (x :: seen)
+            else calculate tl (x :: seen)
     in
 
     calculate queue seen |> List.sort_uniq compare
@@ -83,8 +80,8 @@ let determinization (aut : Hopcroft.automaton)  : Hopcroft.automaton=
             if reach x l <> [] then (x, [ l ], reach x l) :: acc else acc)
           acc aut.alphabet)
       [] determinization
-    
   in
+
   {
     states = determinization;
     alphabet = aut.alphabet;
@@ -114,7 +111,7 @@ let determinization (aut : Hopcroft.automaton)  : Hopcroft.automaton=
   }
 
 let brzozowski (aut : Hopcroft.automaton) : Hopcroft.automaton =
-  let inv (a:Hopcroft.automaton) : Hopcroft.automaton =
+  let inv (a : Hopcroft.automaton) : Hopcroft.automaton =
     {
       initial = a.finals;
       finals = a.initial;
@@ -123,15 +120,18 @@ let brzozowski (aut : Hopcroft.automaton) : Hopcroft.automaton =
       transitions = List.map (fun (x, y, z) -> (z, y, x)) a.transitions;
     }
   in
-  let concat_trans (a:Hopcroft.automaton) : Hopcroft.automaton  =
+  let concat_trans (a : Hopcroft.automaton) : Hopcroft.automaton =
     let rec aux acc = function
       | [] -> acc
-      | (x, _, z) :: tl -> let helper = List.filter (fun (a, _, c) -> List.compare  compare x a = 0 && List.compare compare z c =0) a.transitions in 
-      let new_l = List.fold_left (fun acc (_, b, _) -> b @ acc) [] helper in
-      aux ((x, new_l, z) :: acc) tl
-
-
-          
+      | (x, _, z) :: tl ->
+          let helper =
+            List.filter
+              (fun (a, _, c) ->
+                List.compare compare x a = 0 && List.compare compare z c = 0)
+              a.transitions
+          in
+          let new_l = List.fold_left (fun acc (_, b, _) -> b @ acc) [] helper in
+          aux ((x, new_l, z) :: acc) tl
     in
     {
       initial = a.initial;
@@ -140,11 +140,11 @@ let brzozowski (aut : Hopcroft.automaton) : Hopcroft.automaton =
       states = a.states;
       transitions = List.rev (aux [] a.transitions) |> List.sort_uniq compare;
     }
-
-   
-
   in
 
-  inv aut |> determinization |> inv |> concat_trans
+  let rec det_until_Dfa (a : Hopcroft.automaton) : Hopcroft.automaton =
+    if List.length a.initial > 1 then aut |> determinization |> det_until_Dfa
+    else aut
+  in
 
-
+  inv aut |> determinization |> inv |> concat_trans |> det_until_Dfa

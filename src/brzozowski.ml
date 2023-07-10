@@ -1,67 +1,8 @@
-open Scanf
 
-(*default type of automaton*)
-type state = int
-type symbol = char
-type transition = state list * symbol list * state list
-
-type automaton_def = {
-  states : state list list;
-  alphabet : symbol list;
-  transitions : transition list;
-  initial : state list list;
-  finals : state list list;
-}
-
-let automaton_def =
-  let read_int_list () =
-    read_line () |> String.split_on_char ' '
-    |> List.map (fun s -> [ int_of_string s ])
-  in
-  let create_machine nTrans =
-    let rec loop i acc =
-      if i = 0 then List.rev acc
-      else
-        let str = read_line () in
-        let transition =
-          sscanf str " %d %c %d " (fun a b c -> ([ a ], [ b ], [ c ]))
-        in
-        loop (i - 1) (transition :: acc)
-    in
-    loop nTrans []
-  in
-  let calc_inter transitions finiS =
-    let aux =
-      List.fold_left (fun acc (a, _, c) -> a :: c :: acc) finiS transitions
-    in
-    List.sort_uniq compare aux
-  in
-
-  let calc_alpha transitions =
-    let aux =
-      List.fold_left
-        (fun acc (_, b, _) ->
-          let y = List.hd b in
-          y :: acc)
-        [] transitions
-    in
-    List.sort_uniq compare aux
-  in
-
-  let _nS = read_int () in
-  let iniS = [ [ read_int () ] ] in
-  let _nF = read_int () in
-  let finiS = read_int_list () in
-  let nTrans = read_int () in
-  let trans = create_machine nTrans in
-  let alphabet = calc_alpha trans in
-  let states = calc_inter trans [] in
-
-  { states; alphabet; transitions = trans; initial = iniS; finals = finiS }
 
 (*prints*)
 
-let print_automaton (a : automaton_def) =
+let print_automaton (a : Hopcroft.automaton) =
   let print_states p =
     List.iter
       (fun set ->
@@ -104,7 +45,7 @@ let print_automaton (a : automaton_def) =
   print_states a.finals;
   print_newline ()
 
-let determinization (aut : automaton_def) : automaton_def =
+let determinization (aut : Hopcroft.automaton) : Hopcroft.automaton=
   let reach s l =
     List.fold_left
       (fun acc x ->
@@ -175,8 +116,8 @@ let determinization (aut : automaton_def) : automaton_def =
       |> List.sort_uniq compare;
   }
 
-let brzozowski (aut : automaton_def) : automaton_def =
-  let inv (a : automaton_def) : automaton_def =
+let brzozowski (aut : Hopcroft.automaton) : Hopcroft.automaton =
+  let inv (a : Hopcroft.automaton) : Hopcroft.automaton =
     {
       initial = a.finals;
       finals = a.initial;
@@ -185,7 +126,7 @@ let brzozowski (aut : automaton_def) : automaton_def =
       transitions = List.map (fun (x, y, z) -> (z, y, x)) a.transitions;
     }
   in
-  let concat_trans (a : automaton_def) : automaton_def =
+  let concat_trans (a : Hopcroft.automaton) : Hopcroft.automaton =
     let rec aux acc = function
       | [] -> acc
       | (x, _, z) :: tl ->
@@ -207,12 +148,11 @@ let brzozowski (aut : automaton_def) : automaton_def =
     }
   in
 
-  let rec det_until_Dfa (v : automaton_def) : automaton_def =
+  let rec det_until_Dfa (v : Hopcroft.automaton) : Hopcroft.automaton =
     if List.length v.initial > 1 then determinization v |> concat_trans |> det_until_Dfa else v
   in
 
   inv aut |> determinization |> inv |> concat_trans|> det_until_Dfa
 
-let x = automaton_def
-let k = brzozowski automaton_def 
+
 

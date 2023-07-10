@@ -1,64 +1,4 @@
-open Scanf
 open Printf
-
-(*default type of automaton*)
-type state = int
-type symbol = char
-type transition = state list * symbol list * state list
-
-type automaton_def = {
-  states : state list list;
-  alphabet : symbol list;
-  transitions : transition list;
-  initial : state list list;
-  finals : state list list;
-}
-
-let automaton_def =
-  let read_int_list () =
-    read_line () |> String.split_on_char ' '
-    |> List.map (fun s -> [ int_of_string s ])
-  in
-  let create_machine nTrans =
-    let rec loop i acc =
-      if i = 0 then List.rev acc
-      else
-        let str = read_line () in
-        let transition =
-          sscanf str " %d %c %d " (fun a b c -> ([ a ], [ b ], [ c ]))
-        in
-        loop (i - 1) (transition :: acc)
-    in
-    loop nTrans []
-  in
-  let calc_inter transitions finiS =
-    let aux =
-      List.fold_left (fun acc (a, _, c) -> a :: c :: acc) finiS transitions
-    in
-    List.sort_uniq compare aux
-  in
-
-  let calc_alpha transitions =
-    let aux =
-      List.fold_left
-        (fun acc (_, b, _) ->
-          let y = List.hd b in
-          y :: acc)
-        [] transitions
-    in
-    List.sort_uniq compare aux
-  in
-
-  let _nS = read_int () in
-  let iniS = [ [ read_int () ] ] in
-  let _nF = read_int () in
-  let finiS = read_int_list () in
-  let nTrans = read_int () in
-  let trans = create_machine nTrans in
-  let alphabet = calc_alpha trans in
-  let states = calc_inter trans [] in
-
-  { states; alphabet; transitions = trans; initial = iniS; finals = finiS }
 
 (*deafult type to set type*)
 module States = Set.Make (struct
@@ -102,7 +42,7 @@ type automaton = {
   finals : New_States.t;
 }
 
-let transform_automaton (def : automaton_def) : automaton =
+let transform_automaton (def : Hopcroft.automaton) : automaton =
   let states = List.map States.of_list def.states |> New_States.of_list in
   let alphabet = Labels.of_list def.alphabet in
   let transitions =
@@ -163,7 +103,6 @@ let print_automaton a =
   print_newstates a.finals
 
 let determinization aut =
-  
   let reach s l =
     States.fold
       (fun x acc ->
@@ -241,44 +180,6 @@ let brzozowski a =
       transitions = Transitions.map (fun (x, y, z) -> (z, y, x)) a.transitions;
     }
   in
-  let print_states s =
-    States.iter
-      (fun x ->
-        print_int x;
-        print_string " ")
-      s
-  in
-  let print_newstates set_of_sets =
-    New_States.iter
-      (fun set ->
-        States.iter
-          (fun element ->
-            print_int element;
-            print_string " ")
-          set;
-        print_string "| ")
-      set_of_sets;
-    print_newline ()
-  in
-  let print_labels labels =
-    Labels.iter
-      (fun label ->
-        print_char label;
-        print_string " ")
-      labels
-  in
-
-  let print_transitions transitions =
-    Transitions.iter
-      (fun (x, y, z) ->
-        print_states x;
-        printf "-> ";
-        print_labels y;
-        printf "-> ";
-        print_states z;
-        print_newline ())
-      transitions
-  in
   let concat_trans a =
     {
       initial = a.initial;
@@ -299,18 +200,18 @@ let brzozowski a =
                 (fun (_, b, _) acc -> Labels.union b acc)
                 h Labels.empty
             in
-         
-            Transitions.add (x,new_l, z) acc)
+
+            Transitions.add (x, new_l, z) acc)
           a.transitions Transitions.empty;
     }
   in
-  let rec det_until_Dfa  v =
-    if New_States.cardinal v.initial > 1 then determinization v |> concat_trans |> det_until_Dfa else v
+  let rec det_until_Dfa v =
+    if New_States.cardinal v.initial > 1 then
+      determinization v |> concat_trans |> det_until_Dfa
+    else v
   in
-  inv a |> determinization |> inv |> concat_trans |> det_until_Dfa 
+  inv a |> determinization |> inv |> concat_trans |> det_until_Dfa
 
 (*output*)
 
-let aut = transform_automaton automaton_def
-let brzozowski = brzozowski aut
-let () = print_automaton brzozowski
+

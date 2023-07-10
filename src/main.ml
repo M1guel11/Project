@@ -11,7 +11,7 @@ let () =
 (*Hopcroft Lists*)
 let t0_hl = Benchmark.make 0L in
 
-let _hop_list= Hopcroft.hopcroft x in
+let _hop_list=  Hopcroft.hopcroft x in
 
 let  time_hl = Benchmark.sub (Benchmark.make 0L) t0_hl in
 Hopcroft.print_automaton _hop_list;

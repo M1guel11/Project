@@ -98,7 +98,7 @@ type automaton = {
   states : New_States.t;
   alphabet : Labels.t;
   transitions : Transitions.t;
-  initial : New_States.elt;
+  initial : New_States.t;
   finals : New_States.t;
 }
 
@@ -111,7 +111,7 @@ let transform_automaton (def : automaton_def) : automaton =
       def.transitions
     |> Transitions.of_list
   in
-  let initial = List.map States.of_list def.initial |> List.hd in
+  let initial = List.map States.of_list def.initial |> New_States.of_list in
   let finals = List.map States.of_list def.finals |> New_States.of_list in
   { states; alphabet; transitions; initial; finals }
 
@@ -159,72 +159,155 @@ let print_automaton a =
   print_labels a.alphabet;
   print_newline ();
   print_transitions a.transitions;
-  print_newstates (New_States.singleton a.initial);
+  print_newstates a.initial;
   print_newstates a.finals
 
-(*alghorithm*)
-let brzozowski a =
-  let inv_trans = Transitions.map (fun (x, y, z) -> (z, y, x)) a.transitions in
-  let reach s trans =
-    let acc = ref States.empty in
-    Transitions.iter
-      (fun (x, _, z) -> if States.subset x s then acc := States.union z !acc)
-      trans;
-    !acc
+let determinization aut =
+  
+  let reach s l =
+    States.fold
+      (fun x acc ->
+        Transitions.fold
+          (fun (a, b, c) acc ->
+            if States.mem x a && Labels.mem l b then States.union c acc else acc)
+          aut.transitions acc)
+      s States.empty
   in
+
   let determinization =
     let queue =
-      [
-        List.fold_left States.union States.empty (New_States.elements a.finals);
-      ]
+      New_States.fold (fun x acc -> States.union x acc) aut.initial States.empty
+      |> New_States.singleton |> New_States.elements
     in
+
+    let seen = New_States.empty in
     let rec calculate queue seen =
       match queue with
-      | [] -> New_States.filter (fun x -> not (States.is_empty x)) seen
+      | [] -> seen
       | x :: tl ->
-          if List.mem (reach x inv_trans) queue then
-            calculate tl (New_States.add x seen)
-          else calculate (reach x inv_trans :: tl) (New_States.add x seen)
+          if New_States.mem x seen then calculate tl seen
+          else
+            let reachables =
+              Labels.fold
+                (fun l acc -> New_States.add (reach x l) acc)
+                aut.alphabet New_States.empty
+            in
+            if not (New_States.is_empty reachables) then
+              calculate
+                (tl @ New_States.elements reachables)
+                (New_States.add x seen)
+            else calculate tl (New_States.add x seen)
     in
-
-    calculate queue New_States.empty
+    calculate queue seen |> New_States.filter (fun x -> not (States.is_empty x))
   in
-
-  let rec new_s element lst =
-    let aux = New_States.elements lst in
-    match aux with
-    | [] -> States.empty
-    | x :: tl ->
-        if States.subset element x then x
-        else new_s element (New_States.of_list tl)
-  in
-
-  let new_l s trans =
-    Transitions.fold
-      (fun (src, labels, _) acc ->
-        if States.subset src s then Labels.union labels acc else acc)
-      trans Labels.empty
-  in
-  let new_t trans =
-    Transitions.map
-      (fun (x, _, z) ->
-        ( new_s x determinization,
-          new_l (new_s x determinization) trans,
-          new_s z determinization ))
-      trans
+  let new_t =
+    New_States.fold
+      (fun x acc ->
+        Labels.fold
+          (fun l acc ->
+            if not (States.is_empty (reach x l)) then
+              Transitions.add (x, Labels.of_list [ l ], reach x l) acc
+            else acc)
+          aut.alphabet acc)
+      determinization Transitions.empty
   in
 
   {
     states = determinization;
-    (*tirar o estado vazio*)
-    alphabet = a.alphabet;
-    transitions = new_t a.transitions;
-    initial = new_s a.initial determinization;
+    alphabet = aut.alphabet;
+    transitions = new_t;
+    initial =
+      New_States.fold
+        (fun x acc ->
+          New_States.filter (fun y -> States.subset x y) determinization
+          |> New_States.union acc)
+        aut.initial New_States.empty;
     finals =
       New_States.fold
-        (fun x acc -> New_States.add (new_s x determinization) acc)
-        a.finals New_States.empty;
+        (fun x acc ->
+          New_States.filter (fun y -> States.subset x y) determinization
+          |> New_States.union acc)
+        aut.finals New_States.empty;
   }
+
+(*alghorithm*)
+let brzozowski a =
+  let inv a =
+    {
+      initial = a.finals;
+      finals = a.initial;
+      alphabet = a.alphabet;
+      states = a.states;
+      transitions = Transitions.map (fun (x, y, z) -> (z, y, x)) a.transitions;
+    }
+  in
+  let print_states s =
+    States.iter
+      (fun x ->
+        print_int x;
+        print_string " ")
+      s
+  in
+  let print_newstates set_of_sets =
+    New_States.iter
+      (fun set ->
+        States.iter
+          (fun element ->
+            print_int element;
+            print_string " ")
+          set;
+        print_string "| ")
+      set_of_sets;
+    print_newline ()
+  in
+  let print_labels labels =
+    Labels.iter
+      (fun label ->
+        print_char label;
+        print_string " ")
+      labels
+  in
+
+  let print_transitions transitions =
+    Transitions.iter
+      (fun (x, y, z) ->
+        print_states x;
+        printf "-> ";
+        print_labels y;
+        printf "-> ";
+        print_states z;
+        print_newline ())
+      transitions
+  in
+  let concat_trans a =
+    {
+      initial = a.initial;
+      finals = a.finals;
+      alphabet = a.alphabet;
+      states = a.states;
+      transitions =
+        Transitions.fold
+          (fun (x, _, z) acc ->
+            let h =
+              Transitions.filter
+                (fun (a, _, c) ->
+                  States.compare x a = 0 && States.compare z c = 0)
+                a.transitions
+            in
+            let new_l =
+              Transitions.fold
+                (fun (_, b, _) acc -> Labels.union b acc)
+                h Labels.empty
+            in
+         
+            Transitions.add (x,new_l, z) acc)
+          a.transitions Transitions.empty;
+    }
+  in
+  let rec det_until_Dfa  v =
+    if New_States.cardinal v.initial > 1 then determinization v |> concat_trans |> det_until_Dfa else v
+  in
+  inv a |> determinization |> inv |> concat_trans |> det_until_Dfa 
 
 (*output*)
 

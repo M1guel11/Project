@@ -188,4 +188,4 @@ let hopcroft automaton =
     finals = new_states automaton.finals ;
   }
 
-let result = hopcroft automaton
+

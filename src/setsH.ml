@@ -1,4 +1,3 @@
-
 open Printf
 
 (*default type to set type*)
@@ -26,10 +25,10 @@ module TransitionsSet = struct
   let compare a b =
     let x0, y0, z0 = a in
     let x1, y1, z1 = b in
-    let r = Stdlib.compare x0 x1 in
+    let r = States.compare x0 x1 in
     if r = 0 then
-      let r1 = Stdlib.compare y0 y1 in
-      if r1 = 0 then Stdlib.compare z0 z1 else r1
+      let r1 = Labels.compare y0 y1 in
+      if r1 = 0 then States.compare z0 z1 else r1
     else r
 end
 
@@ -43,7 +42,7 @@ type automaton = {
   finals : New_States.t;
 }
 
-let transform_automaton (def : Hopcroft.automaton)=
+let transform_automaton (def : Hopcroft.automaton) =
   let states = List.map States.of_list def.states |> New_States.of_list in
   let alphabet = Labels.of_list def.alphabet in
   let transitions =
@@ -57,48 +56,45 @@ let transform_automaton (def : Hopcroft.automaton)=
   { states; alphabet; transitions; initial; finals }
 
 (*print*)
-let print_automaton a =
-  let print_states s =
-    States.iter
-      (fun x ->
-        print_int x;
-        print_string " ")
-      s
-  in
-  let print_newstates set_of_sets =
-    New_States.iter
-      (fun set ->
-        States.iter
-          (fun element ->
-            print_int element;
-            print_string ";"
-          )
-          set;
-        print_string " | ";
-      )
-      set_of_sets;
-    print_newline ()
-  
-  in
-  let print_labels labels =
-    Labels.iter
-      (fun label ->
-        print_char label;
-        print_string " ")
-      labels
-  in
 
-  let print_transitions transitions =
-    Transitions.iter
-      (fun (x, y, z) ->
-        print_states x;
-        printf "-> ";
-        print_labels y;
-        printf "-> ";
-        print_states z;
-        print_newline ())
-      transitions
-  in
+let print_states s =
+  States.iter
+    (fun x ->
+      print_int x;
+      print_string " ")
+    s
+
+let print_newstates set_of_sets =
+  New_States.iter
+    (fun set ->
+      States.iter
+        (fun element ->
+          print_int element;
+          print_string ";")
+        set;
+      print_string " | ")
+    set_of_sets;
+  print_newline ()
+
+let print_labels labels =
+  Labels.iter
+    (fun label ->
+      print_char label;
+      print_string " ")
+    labels
+
+let print_transitions transitions =
+  Transitions.iter
+    (fun (x, y, z) ->
+      print_states x;
+      printf "-> ";
+      print_labels y;
+      printf "-> ";
+      print_states z;
+      print_newline ())
+    transitions
+
+let print_automaton a =
   print_newstates a.states;
   print_labels a.alphabet;
   print_newline ();
@@ -107,71 +103,62 @@ let print_automaton a =
   print_newstates a.finals
 
 (*output*)
-let hopcroft aut =
-  let in_reach x =
-    Transitions.fold
-      (fun (a, _, z) acc ->
-        if States.compare a x = 0 then New_States.add z acc else acc)
-      aut.transitions New_States.empty
-  in
 
-  let new_s x =
-    let l = in_reach x in
-    let result =
-      New_States.fold
-        (fun a acc ->
-          if
-            (New_States.compare l (in_reach a )
-             = 0 (*list of possibles equivalent*)
-            || New_States.subset l aut.finals
-               && New_States.subset (in_reach a ) aut.finals)
-            && New_States.cardinal l = New_States.cardinal (in_reach a )
-            (*are not equivalent but both have final states*)
-          then States.union a acc
-          else acc)
-        aut.states x
-    in
-    result
-  in
+let in_reach x aut =
+  Transitions.fold
+    (fun (a, _, z) acc ->
+      if States.compare a x = 0 then New_States.add z acc else acc)
+    aut.transitions New_States.empty
 
-
-      
-  
-  let update_transitions  =
-    let new_l ini dest =
-   
-      Transitions.fold
-        (fun (x, y, z) labels ->
-          if New_States.exists (fun a -> States.subset x a ) ini && New_States.exists (fun b -> States.subset z b ) dest  then Labels.union labels y else labels)
-       aut.transitions  Labels.empty
-
-        in
-    Transitions.fold
-      (fun (x, _y, z) acc ->
-        let updated_transition =
-          ( new_s x ,
-            new_l (New_States.singleton (new_s x ) ) (New_States.singleton (new_s z )) ,
-            new_s z )
-        in
-        Transitions.add updated_transition acc)
-      aut.transitions Transitions.empty
-  in
-  let new_states param  =
+let new_s x aut =
+  let l = in_reach x aut in
+  let result =
     New_States.fold
-      (fun x acc ->
-        let result = new_s x  in
-        New_States.add result acc)
-      param
-      New_States.empty
-  
+      (fun a acc ->
+        if
+          (New_States.compare l (in_reach a aut)
+           = 0 (*list of possibles equivalent*)
+          || New_States.subset l aut.finals
+             && New_States.subset (in_reach a aut) aut.finals)
+          && New_States.cardinal l = New_States.cardinal (in_reach a aut)
+          (*are not equivalent but both have final states*)
+        then States.union a acc
+        else acc)
+      aut.states x
   in
+  result
 
+let update_transitions aut =
+  let find_labels ini dest =
+    Transitions.fold
+      (fun (x, y, z) acc ->
+        if States.subset x ini && States.subset z dest then Labels.union y acc
+        else acc)
+      aut.transitions Labels.empty
+  in
+  Transitions.fold
+    (fun (x, _, z) acc ->
+      let ni = new_s x aut in
+      let nd = new_s z aut in
+      let auz = (ni, find_labels ni nd, nd) in
+      Transitions.add auz acc)
+    aut.transitions Transitions.empty
+
+let new_states param aut =
+  New_States.fold
+    (fun x acc ->
+      let result = new_s x aut in
+      New_States.add result acc)
+    param New_States.empty
+
+let hopcroft aut =
   {
-    states = new_states aut.states ;
+    states = new_states aut.states aut;
     alphabet = aut.alphabet;
-    transitions = update_transitions ;
-    initial = new_s (aut.initial) ;
-    finals = New_States.fold (fun x acc -> New_States.add (new_s x ) acc) aut.finals New_States.empty;
-
+    transitions = update_transitions aut;
+    initial = new_s aut.initial aut;
+    finals =
+      New_States.fold
+        (fun x acc -> New_States.add (new_s x aut) acc)
+        aut.finals New_States.empty;
   }
-

@@ -48,7 +48,7 @@ let automaton =
   in
 
   let _nS = read_int () in
-  let iniS = [ [ read_int () ] ] in
+  let iniS = read_int_list () in
   let _nF = read_int () in
   let finiS = read_int_list () in
   let nTrans = read_int () in
@@ -59,46 +59,47 @@ let automaton =
   { states; alphabet; transitions = trans; initial = iniS; finals = finiS }
 
 (*prints*)
+let print_states p =
+  List.iter
+    (fun set ->
+      List.iter
+        (fun element ->
+          print_int element;
+          print_string ";")
+        set;
+      print_string " | ")
+    p
+
+let print_labels labels =
+  List.iter
+    (fun label ->
+      print_char label;
+      print_string " ")
+    labels
+
+let print_transitions t =
+  t
+  |> List.iter (fun (a, b, c) ->
+         List.iter
+           (fun x ->
+             print_int x;
+             print_string " ")
+           a;
+         print_string "-> ";
+         List.iter
+           (fun x ->
+             print_char x;
+             print_string " ")
+           b;
+         print_string "-> ";
+         List.iter
+           (fun x ->
+             print_int x;
+             print_string " ")
+           c;
+         print_newline ())
+
 let print_automaton a =
-  let print_states p =
-    List.iter
-      (fun set ->
-        List.iter (fun element -> print_int element; print_string ";") set;
-        print_string " | ")
-      p
-  in
-
-  let print_labels labels =
-    List.iter
-      (fun label ->
-        print_char label;
-        print_string " ")
-      labels
-  in
-
-  let print_transitions t =
-    t
-    |> List.iter (fun (a, b, c) ->
-           List.iter
-             (fun x ->
-               print_int x;
-               print_string " ")
-             a;
-           print_string "-> ";
-           List.iter
-             (fun x ->
-               print_char x;
-               print_string " ")
-             b;
-           print_string "-> ";
-           List.iter
-             (fun x ->
-               print_int x;
-               print_string " ")
-             c;
-           print_newline ())
-  in
-
   print_states a.states;
   print_newline ();
   print_labels a.alphabet;
@@ -109,83 +110,81 @@ let print_automaton a =
   print_states a.finals;
   print_newline ()
 
-let hopcroft automaton =
-  let new_s x =
-    let possibles state =
-      List.fold_left
-        (fun ret (a, _, c) ->
-          if List.compare compare state a = 0 then c :: ret else ret)
-        [] automaton.transitions
-    in
-    let l = possibles x in
-    let result =
-      let isfinal state =
-        List.for_all
-          (fun sublist -> List.exists (fun f -> f = sublist) automaton.finals)
-          state
-      in
-      List.fold_left
-        (fun acc a ->
-          if
-            List.compare compare l (possibles a) = 0
-            || isfinal l
-               && isfinal (possibles a)
-               && List.length l = List.length (possibles a)
-          then a @ acc
-          else acc)
-        [] automaton.states
-    in
-    result |> List.sort_uniq compare
-  in
-  let new_states states =
-    List.map (fun x -> new_s x) states |> List.sort_uniq compare
-  in
+(*algorithm*)
 
-  let n_s = new_states automaton.states in
-  let new_transitions =
-    let new_l s d =
-      List.fold_left
-        (fun acc (x, y, z) ->
-          if List.compare compare x s = 0 && List.compare compare z d = 0 then
-            y @ acc
-          else acc)
-        [] automaton.transitions
+let new_s x =
+  let possibles state =
+    List.fold_left
+      (fun ret (a, _, c) ->
+        if List.compare compare state a = 0 then c :: ret else ret)
+      [] automaton.transitions
+  in
+  let l = possibles x in
+  let result =
+    let isfinal state =
+      List.for_all
+        (fun sublist -> List.exists (fun f -> f = sublist) automaton.finals)
+        state
     in
     List.fold_left
-      (fun acc x ->
-        List.fold_left
-          (fun acc2 y ->
-            let aux = (new_s x, List.sort_uniq compare (new_l x y), new_s y) in
-            if List.length (new_l x y) = 0 then acc2
-            else
-              match
-                List.find_opt
-                  (fun (a, _, c) ->
-                    List.compare compare (new_s x) a = 0
-                    && List.compare compare c (new_s y) = 0)
-                  acc2
-              with
-              | Some (k, w, t) ->
-                  List.filter
-                    (fun (a, _, c) ->
-                      not
-                        (List.compare compare (new_s x) a = 0
-                        && List.compare compare c (new_s y) = 0))
-                    acc2
-                  |> fun filtered_acc2 ->
-                  (k, List.sort_uniq compare (w @ new_l x y), t)
-                  :: filtered_acc2
-              | None -> aux :: acc2)
-          acc automaton.states)
+      (fun acc a ->
+        if
+          List.compare compare l (possibles a) = 0
+          || isfinal l
+             && isfinal (possibles a)
+             && List.length l = List.length (possibles a)
+        then a @ acc
+        else acc)
       [] automaton.states
   in
+  result |> List.sort_uniq compare
+
+let new_states states =
+  List.map (fun x -> new_s x) states |> List.sort_uniq compare
+
+let new_transitions =
+  let new_l s d =
+    List.fold_left
+      (fun acc (x, y, z) ->
+        if List.compare compare x s = 0 && List.compare compare z d = 0 then
+          y @ acc
+        else acc)
+      [] automaton.transitions
+  in
+  List.fold_left
+    (fun acc x ->
+      List.fold_left
+        (fun acc2 y ->
+          let aux = (new_s x, List.sort_uniq compare (new_l x y), new_s y) in
+          if List.length (new_l x y) = 0 then acc2
+          else
+            match
+              List.find_opt
+                (fun (a, _, c) ->
+                  List.compare compare (new_s x) a = 0
+                  && List.compare compare c (new_s y) = 0)
+                acc2
+            with
+            | Some (k, w, t) ->
+                List.filter
+                  (fun (a, _, c) ->
+                    not
+                      (List.compare compare (new_s x) a = 0
+                      && List.compare compare c (new_s y) = 0))
+                  acc2
+                |> fun filtered_acc2 ->
+                (k, List.sort_uniq compare (w @ new_l x y), t) :: filtered_acc2
+            | None -> aux :: acc2)
+        acc automaton.states)
+    [] automaton.states
+
+let hopcroft automaton =
+  let n_s = new_states automaton.states in
 
   {
     states = n_s;
     alphabet = automaton.alphabet;
     transitions = List.sort_uniq compare new_transitions;
-    initial = new_states automaton.initial ;
-    finals = new_states automaton.finals ;
+    initial = new_states automaton.initial;
+    finals = new_states automaton.finals;
   }
-
-

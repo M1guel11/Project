@@ -11,7 +11,7 @@ let () =
 (*Hopcroft Lists*)
 let t0_hl = Benchmark.make 0L in
 
-let _hop_list=  Hopcroft.hopcroft x in
+let _hop_list=( Hopcroft.hopcroft x) in
 
 let  time_hl = Benchmark.sub (Benchmark.make 0L) t0_hl in
 Hopcroft.print_automaton _hop_list;
@@ -73,3 +73,6 @@ SetsB.print_automaton brz_set_alg;
 print_endline "Benchmark results Brzozwski Sets:";
 print_endline (Benchmark.to_string time_bs) ;
 (*_____________________________________________________________*)
+(*DET*)
+let vv = Brzozowski.determinization x in
+Brzozowski.print_automaton vv;

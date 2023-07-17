@@ -1,63 +1,4 @@
 open Printf
-open Scanf
-
-type state = int
-type symbol = char
-type transition = state list * symbol list * state list
-
-type automaton_def = {
-  states : state list list;
-  alphabet : symbol list;
-  transitions : transition list;
-  initial : state list list;
-  finals : state list list;
-}
-
-let automaton =
-  let read_int_list () =
-    read_line () |> String.split_on_char ' '
-    |> List.map (fun s -> [ int_of_string s ])
-  in
-  let create_machine nTrans =
-    let rec loop i acc =
-      if i = 0 then List.rev acc
-      else
-        let str = read_line () in
-        let transition =
-          sscanf str " %d %c %d " (fun a b c -> ([ a ], [ b ], [ c ]))
-        in
-        loop (i - 1) (transition :: acc)
-    in
-    loop nTrans []
-  in
-  let calc_inter transitions finiS =
-    let aux =
-      List.fold_left (fun acc (a, _, c) -> a :: c :: acc) finiS transitions
-    in
-    List.sort_uniq compare aux
-  in
-
-  let calc_alpha transitions =
-    let aux =
-      List.fold_left
-        (fun acc (_, b, _) ->
-          let y = List.hd b in
-          y :: acc)
-        [] transitions
-    in
-    List.sort_uniq compare aux
-  in
-
-  let _nS = read_int () in
-  let iniS = read_int_list () in
-  let _nF = read_int () in
-  let finiS = read_int_list () in
-  let nTrans = read_int () in
-  let trans = create_machine nTrans in
-  let alphabet = calc_alpha trans in
-  let states = calc_inter trans [] in
-
-  { states; alphabet; transitions = trans; initial = iniS; finals = finiS }
 
 (*default type to set type*)
 module States = Set.Make (struct
@@ -69,7 +10,8 @@ end)
 module New_States = Set.Make (struct
   type t = States.t
 
-  let compare = States.compare
+
+  let compare = compare
 end)
 
 module Partition = Set.Make (struct
@@ -103,11 +45,11 @@ type automaton = {
   states : New_States.t;
   alphabet : Labels.t;
   transitions : Transitions.t;
-  initial : New_States.elt;
+  initial : New_States.t;
   finals : New_States.t;
 }
 
-let transform_automaton (def : automaton_def) : automaton =
+let transform_automaton (def : Hop2.automaton) : automaton =
   let states = List.map States.of_list def.states |> New_States.of_list in
   let alphabet = Labels.of_list def.alphabet in
   let transitions =
@@ -116,7 +58,7 @@ let transform_automaton (def : automaton_def) : automaton =
       def.transitions
     |> Transitions.of_list
   in
-  let initial = List.map States.of_list def.initial |> List.hd in
+  let initial = List.map States.of_list def.initial |> New_States.of_list in
   let finals = List.map States.of_list def.finals |> New_States.of_list in
   { states; alphabet; transitions; initial; finals }
 
@@ -180,9 +122,37 @@ let print_automaton a =
   print_labels a.alphabet;
   print_newline ();
   print_transitions a.transitions;
-  print_newstates (New_States.singleton a.initial);
+  print_newstates a.initial;
   print_newstates a.finals
 
+ (*auxiliary functions*) 
+let concat_trans a =
+  {
+    initial = a.initial;
+    finals = a.finals;
+    alphabet = a.alphabet;
+    states = a.states;
+    transitions =
+      Transitions.fold
+        (fun (x, _, z) acc ->
+          let h =
+            Transitions.filter
+              (fun (a, _, c) ->
+                States.compare x a = 0 && States.compare z c = 0)
+              a.transitions
+          in
+          let new_l =
+            Transitions.fold
+              (fun (_, b, _) acc -> Labels.union b acc)
+              h Labels.empty
+          in
+
+          Transitions.add (x, new_l, z) acc)
+        a.transitions Transitions.empty;
+  }
+
+
+   (*hopcroft*) 
 let initial_partition aut =
   New_States.fold
     (fun x (acc1, acc2) ->
@@ -193,27 +163,24 @@ let initial_partition aut =
     (New_States.empty, New_States.empty)
   |> fun (a, b) -> Partition.singleton a |> Partition.add b
 
-let possibles state t =
+let possibles state l t =
   Transitions.fold
-    (fun (a, _, c) ret ->
-      if States.subset a state  then New_States.add c ret else ret)
+    (fun (a, b, c) ret ->
+      if States.subset a state && Labels.subset l b then New_States.add c ret
+      else ret)
     t New_States.empty
 
-let compare_possibles pos1 pos2 aut =
-  let compare_lists l1 l2 =
-    if New_States.cardinal l1 <> New_States.cardinal l2 then -1
-    else if New_States.compare l1 l2 = 0 then 0
-    else if
-      New_States.exists
-        (fun x -> New_States.subset (New_States.singleton x) l1)
-        aut.finals
-      && New_States.exists
-           (fun x -> New_States.subset (New_States.singleton x) l2)
-           aut.finals
-    then 0
-    else -1
-  in
-  compare_lists pos1 pos2 = 0
+let compare_two_possibles l1 l2 aut =
+  if New_States.cardinal l1 <> New_States.cardinal l2 then -1
+  else if New_States.compare l1 l2 = 0 then 0
+  else
+    let new_l1 =
+      New_States.filter (fun x -> not (New_States.mem x aut.finals)) l1
+    in
+    let new_l2 =
+      New_States.filter (fun x -> not (New_States.mem x aut.finals)) l2
+    in
+    New_States.compare new_l1 new_l2
 
 let combinations set =
   let elements = New_States.elements set in
@@ -226,35 +193,107 @@ let combinations set =
   in
   combine New_States.empty elements
 
+let same_partition p1 p2 part =
+  let get_partition k =
+    Partition.filter (fun x -> New_States.subset k x) part
+  in
+  Partition.compare (get_partition p1) (get_partition p2) = 0
 
-
-
-
-let split l1 aut =
+let split l1 aut part =
   let aux = combinations l1 in
   let split_s state =
-    let state1, state2 = 
-    States.fold (fun elem (s1, s2) ->
-       ( States.add s1 s,  States.add elem s2)
-    ) state (States.empty, States.empty)
+    let state1, state2 =
+      ( state |> States.elements |> List.hd |> States.singleton,
+        state |> States.elements |> List.tl |> List.hd |> States.singleton )
     in
-    state1, state2
+    (state1, state2)
   in
-  let helper =  New_States.filter(fun x -> let (a,b) = split_s x in  compare_possibles (possibles a aut.transitions) (possibles b aut.transitions) aut  )aux in let ()= print_newstates helper;
-in
-  if New_States.is_empty helper then New_States.fold (fun  x acc  -> let (a,b) = split_s x in New_States.add a acc |> New_States.add b   )l1 New_States.empty    
-  else 
-    let temp =
-     New_States.filter (fun x -> New_States.mem x aux    ) l1 in
-     temp
-     
-      
+  let helper =
+    New_States.filter
+      (fun x ->
+        let a, b = split_s x in
+        Labels.for_all
+          (fun l ->
+            let possibles_a =
+              possibles a (Labels.singleton l) aut.transitions
+            in
+            let possibles_b =
+              possibles b (Labels.singleton l) aut.transitions
+            in
+            compare_two_possibles possibles_a possibles_b aut = 0)
+          aut.alphabet
+        && Labels.for_all
+             (fun l ->
+               let possibles_a =
+                 possibles a (Labels.singleton l) aut.transitions
+               in
+               let possibles_b =
+                 possibles b (Labels.singleton l) aut.transitions
+               in
+               same_partition possibles_a possibles_b part)
+             aut.alphabet)
+      aux
+    (*in
+      let () = print_string "helper-> " ;print_newstates helper*)
+  in
+  Partition.empty |> Partition.add helper
 
+let hopcroft h =
+  let init = initial_partition h in
+  let new_s =
+    let rec loop p =
+      let c =
+        Partition.fold
+          (fun x acc -> Partition.union (split x h p) acc)
+          init Partition.empty
+      in
+      let aux =
+        Partition.fold
+          (fun x acc ->
+            New_States.fold
+              (fun y acc2 ->
+                States.fold
+                  (fun z acc3 -> New_States.add (States.of_list [ z ]) acc3)
+                  y acc2)
+              x acc)
+          c New_States.empty
+      in
+      let missing = New_States.diff h.states aux in
+      let new_c = Partition.add missing c in
+      (*let () = print_string "new_c-> " ;print_partition c  in*)
+      if Partition.compare new_c p = 0 then p else loop new_c
+    in
+    loop init
+  in
 
+  let ns =
+    Partition.fold (fun s acc -> New_States.union s acc) new_s New_States.empty
+  in
+  let new_state x new_s =
+    let aux = New_States.filter (fun y -> States.subset x y) new_s in
+    New_States.fold (fun y acc -> States.union y acc) aux States.empty
+  in
+  let update_transitions t new_s =
+    Transitions.fold
+      (fun (a, b, c) acc ->
+        let new_a = new_state a new_s in
+        let new_c = new_state c new_s in
+        let new_b = b in
+        Transitions.add (new_a, new_b, new_c) acc)
+      t Transitions.empty
+  in
 
-let h = transform_automaton automaton
-let p = initial_partition h
-let k = Partition.fold (fun x  acc -> New_States.union (split x h) acc )  p New_States.empty
-
-
+  {
+    states = ns;
+    alphabet = h.alphabet;
+    transitions = update_transitions h.transitions ns;
+    initial =
+      New_States.fold
+        (fun x acc -> New_States.add (new_state x ns) acc)
+        h.initial New_States.empty;
+    finals =
+      New_States.fold
+        (fun x acc -> New_States.add (new_state x ns) acc)
+        h.finals New_States.empty;
+  } |> concat_trans
 

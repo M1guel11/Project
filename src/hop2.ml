@@ -252,6 +252,4 @@ let hopcroft h =
   }
   |> concat_trans
 
-let h = automaton
 
-let kk = hopcroft h

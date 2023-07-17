@@ -42,7 +42,7 @@ type automaton = {
   finals : New_States.t;
 }
 
-let transform_automaton (def : Hopcroft.automaton) =
+let transform_automaton (def : Types.automaton) =
   let states = List.map States.of_list def.states |> New_States.of_list in
   let alphabet = Labels.of_list def.alphabet in
   let transitions =

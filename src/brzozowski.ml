@@ -1,105 +1,3 @@
-open Scanf
-
-type state = int
-type symbol = char
-type transition = state list * symbol list * state list
-
-type automaton = {
-  states : state list list;
-  alphabet : symbol list;
-  transitions : transition list;
-  initial : state list list;
-  finals : state list list;
-}
-
-let automaton =
-  let read_int_list () =
-    read_line () |> String.split_on_char ' '
-    |> List.map (fun s -> [ int_of_string s ])
-  in
-  let create_machine nTrans =
-    let rec loop i acc =
-      if i = 0 then List.rev acc
-      else
-        let str = read_line () in
-        let transition =
-          sscanf str " %d %c %d " (fun a b c -> ([ a ], [ b ], [ c ]))
-        in
-        loop (i - 1) (transition :: acc)
-    in
-    loop nTrans []
-  in
-  let calc_inter transitions finiS =
-    let aux =
-      List.fold_left (fun acc (a, _, c) -> a :: c :: acc) finiS transitions
-    in
-    List.sort_uniq compare aux
-  in
-
-  let calc_alpha transitions =
-    let aux =
-      List.fold_left
-        (fun acc (_, b, _) ->
-          let y = List.hd b in
-          y :: acc)
-        [] transitions
-    in
-    List.sort_uniq compare aux
-  in
-
-  let _nS = read_int () in
-  let iniS = read_int_list () in
-  let _nF = read_int () in
-  let finiS = read_int_list () in
-  let nTrans = read_int () in
-  let trans = create_machine nTrans in
-  let alphabet = calc_alpha trans in
-  let states = calc_inter trans [] in
-
-  { states; alphabet; transitions = trans; initial = iniS; finals = finiS }
-
-(*prints*)
-let print_states p =
-  List.iter
-    (fun set ->
-      List.iter
-        (fun element ->
-          print_int element;
-          print_string "; ")
-        set;
-      print_string " | ")
-    p
-
-let print_transitions a =
-  a
-  |> List.iter (fun (a, b, c) ->
-         List.iter
-           (fun x ->
-             print_int x;
-             print_string " ")
-           a;
-         print_string "-> ";
-         List.iter
-           (fun x ->
-             print_char x;
-             print_string " ")
-           b;
-         print_string "-> ";
-         List.iter
-           (fun x ->
-             print_int x;
-             print_string " ")
-           c;
-         print_newline ())
-
-let print_automaton a =
-  print_states a.states;
-  print_newline ();
-  print_transitions a.transitions;
-  print_states a.initial;
-  print_newline ();
-  print_states a.finals;
-  print_newline ()
 
 (*Determinization*)
 let reach s l t =
@@ -112,7 +10,7 @@ let reach s l t =
     [] s
   |> List.sort_uniq compare
 
-let determinization aut =
+let determinization (aut:Hop2.automaton)   =
   let queue = [ List.sort_uniq compare (List.concat aut.initial) ] in
   let seen = [] in
   let rec calculate queue seen =
@@ -135,7 +33,7 @@ let determinization aut =
 
   calculate queue seen |> List.sort_uniq compare
 
-let new_t aut det =
+let new_t (aut:Hop2.automaton) det =
   List.fold_left
     (fun acc x ->
       List.fold_left
@@ -145,20 +43,8 @@ let new_t aut det =
         acc aut.alphabet)
     [] det
 
-let determinization aut =
-  (*TIRAR !!!!!!!!!!!!!!!!!*)
-  (*let reachable_from_s state_number =
-      let l =
-        List.filter (fun (s, _l, _d) -> List.mem state_number s) aut.transitions
-      in
-      List.map (fun (_s, _l, d) -> d) l |> List.concat |> List.sort_uniq compare
-    in
+let determinization aut : Hop2.automaton =
 
-    let _reachable_from_state_list st_lst =
-      List.fold_left (fun acc x -> reachable_from_s x @ acc) [] st_lst
-      |> List.sort_uniq compare
-    in
-  *)
   let s = determinization aut in
 
   {
@@ -181,7 +67,7 @@ let determinization aut =
 
 (*Brzozowski*)
 
-let inv a =
+let inv (a:Hop2.automaton)  : Hop2.automaton=
   {
     initial = a.finals;
     finals = a.initial;
@@ -190,7 +76,7 @@ let inv a =
     transitions = List.map (fun (x, y, z) -> (z, y, x)) a.transitions;
   }
 
-let upd_aut a =
+let upd_aut  (a:Hop2.automaton)  : Hop2.automaton=
   let up_s =
     List.fold_left
       (fun (cont, acc1) x ->
@@ -228,7 +114,7 @@ let upd_aut a =
       updated_transitions a.transitions |> List.rev |> List.sort_uniq compare;
   }
 
-let complete_aut a =
+let complete_aut  (a:Hop2.automaton)  : Hop2.automaton =
   let dead_state = [ List.length a.states ] in
 
   let calculate s =
@@ -251,8 +137,8 @@ let aux =  (dead_state,a.alphabet,dead_state ) ::calculate a.states  in
     transitions = aux @ a.transitions |> List.sort_uniq compare;
   }
 
-let brzozowski aut =
-  let concat_trans a =
+let brzozowski (aut:Hop2.automaton) :Hop2.automaton =
+  let concat_trans  (a:Hop2.automaton)  : Hop2.automaton =
     let rec aux acc = function
       | [] -> acc
       | (x, _, z) :: tl ->
@@ -264,6 +150,7 @@ let brzozowski aut =
           in
           let new_l = List.fold_left (fun acc (_, b, _) -> b @ acc) [] helper in
           aux ((x, new_l, z) :: acc) tl
+          
     in
     {
       initial = a.initial;
@@ -274,7 +161,7 @@ let brzozowski aut =
     }
   in
 
-  let rec det_until_Dfa v =
+  let rec det_until_Dfa  (v:Hop2.automaton)  : Hop2.automaton =
     if
       List.length v.initial > 1
       || List.exists
@@ -290,7 +177,5 @@ let brzozowski aut =
     else v
   in
 
-  inv aut |> determinization |> upd_aut |> complete_aut  |> inv |> determinization |> upd_aut |> concat_trans |> det_until_Dfa
+  inv aut |> determinization |> upd_aut |> complete_aut  |> inv |> determinization |> concat_trans |> upd_aut  |> det_until_Dfa
 
-let b = automaton
-let nw = brzozowski b

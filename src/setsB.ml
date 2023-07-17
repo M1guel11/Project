@@ -1,5 +1,4 @@
 open Printf
-
 (*deafult type to set type*)
 module States = Set.Make (struct
   type t = int
@@ -42,7 +41,7 @@ type automaton = {
   finals : New_States.t;
 }
 
-let transform_automaton (def : Hopcroft.automaton) : automaton =
+let transform_automaton (def :Hop2.automaton) : automaton =
   let states = List.map States.of_list def.states |> New_States.of_list in
   let alphabet = Labels.of_list def.alphabet in
   let transitions =
@@ -157,11 +156,10 @@ let determinization aut =
     alphabet = aut.alphabet;
     transitions = new_t d aut.alphabet aut.transitions;
     initial =
-      New_States.fold
+        New_States.fold
         (fun x acc ->
-          New_States.filter (fun y -> States.subset x y) d
-          |> New_States.union acc)
-        aut.initial New_States.empty;
+             States.union x acc)
+        aut.initial States.empty  |> New_States.singleton;
     finals =
       New_States.fold
         (fun x acc ->
@@ -206,10 +204,81 @@ let concat_trans a =
         a.transitions Transitions.empty;
   }
 
+let upd_aut a =
+  let up_s =
+  New_States.fold
+      (fun x  (cont, acc1)  ->
+        let cont' = cont + 1 in
+        (cont', (x, States.of_list [cont]) :: acc1))
+        a.states (0, []) 
+  in
+  let _, news = up_s in
+  let get_replacement s =
+    let _x, y =
+      List.hd
+        (List.filter
+           (fun ((antigo:States.t), _new) -> States.compare antigo s = 0)
+           news)
+    in
+    y
+  in
+  let updated_transitions l =
+   Transitions.map
+      (fun (start_state, transition_label, destination_state) ->
+        ( get_replacement start_state,
+          transition_label,
+          get_replacement destination_state ))
+      l
+  in
+
+  {
+    initial = New_States.map (fun x -> get_replacement x) a.initial;
+    finals = New_States.map (fun x -> get_replacement x) a.finals;
+    alphabet = a.alphabet;
+    states = New_States.map (fun x -> get_replacement x) a.states;
+    transitions =
+      updated_transitions a.transitions;
+  }
+
+let complete_aut a =
+  let dead_state = States.of_list [ New_States.cardinal a.states ] in
+
+  let calculate s =
+    New_States.fold
+      (fun x acc ->
+        Labels.fold
+          (fun  l  acc2 ->
+            let aux = reach x l a.transitions in
+            if States.is_empty aux  then Transitions.add (x, Labels.of_list [ l ], dead_state) acc2 else acc2)
+           a.alphabet acc)
+       s Transitions.empty
+  in
+  let aux = Transitions.add (dead_state, a.alphabet, dead_state) (calculate a.states) in
+
+  {
+    initial = a.initial;
+    finals = a.finals;
+    alphabet = a.alphabet;
+    states = a.states;
+    transitions = Transitions.union aux a.transitions;
+  }
+
 let brzozowski a =
-  let rec det_until_Dfa v =
-    if New_States.cardinal v.initial > 1 then
-      determinization v |> concat_trans |> det_until_Dfa
+  let  rec det_until_Dfa v =
+    if New_States.cardinal v.initial > 1 ||
+      Transitions.exists
+      (fun (a, b, _) ->
+        Transitions.cardinal
+          (Transitions.filter
+             (fun (x, y, _) ->
+               States.compare a x = 0&& Labels.compare  b y = 0 )
+             v.transitions)
+        > Labels.cardinal v.alphabet)
+      v.transitions then
+        determinization v |> upd_aut |> concat_trans |> det_until_Dfa
     else v
   in
-  inv a |> determinization |> inv |> concat_trans |> det_until_Dfa
+  inv a |> determinization |> upd_aut |> complete_aut  |> inv |> determinization |> concat_trans |> upd_aut  |> det_until_Dfa
+
+
+
